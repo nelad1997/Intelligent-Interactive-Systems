@@ -166,6 +166,7 @@ def render_sidebar_map(tree, show_header: bool = True):
                      st.session_state["nav_selection_box"] = tree["current"]
                 return
 
+            if new_id != tree["current"]:
                 from app import add_debug_log
                 
                 # 1. Capture Current Draft before Leaving
@@ -192,9 +193,9 @@ def render_sidebar_map(tree, show_header: bool = True):
                 # 4. Force Quill Re-mount
                 if "editor_version" not in st.session_state:
                     st.session_state.editor_version = 0
-                add_debug_log(f"🔄 NAV: Complete. New node={new_id}, EditorVersion={st.session_state.editor_version}")
+                st.session_state.editor_version += 1
                 
-                # Auto-pin (MUST happen before rerun)
+                # Auto-pin
                 target_node = tree["nodes"][new_id]
                 if target_node.get("type") != "root":
                     meta = target_node.get("metadata", {})
@@ -211,6 +212,7 @@ def render_sidebar_map(tree, show_header: bool = True):
                              tree["pinned_items"].append(pin_obj)
                              add_debug_log(f"📌 NAV: Auto-pinned node {new_id}")
 
+                add_debug_log(f"🔄 NAV: Complete. New node={new_id}")
                 st.rerun()
 
         try:
