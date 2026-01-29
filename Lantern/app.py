@@ -781,6 +781,10 @@ def main():
                         doc_title, paragraphs = get_document_structure(clean_html)
                         st.session_state.structural_segments = paragraphs # Sync for ALL node types
                         
+                        # Update paragraphs from current clean_html
+                        doc_title, paragraphs = get_document_structure(clean_html)
+                        st.session_state.structural_segments = paragraphs # Sync for ALL node types
+                        
                         # Update Root Label if this is the root node
                         if current_node.get("type") == "root":
                             if doc_title:

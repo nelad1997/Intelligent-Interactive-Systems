@@ -426,7 +426,11 @@ def _handle_action(tree: Dict, event_context: Dict[str, Any], system_rules: str)
 
     # שליחה ל-LLM
     constraints_str = "\n".join(constraints) if constraints else ""
-    prompt = build_prompt(action, final_user_text, instructions=constraints_str)
+    
+    # Context Fix: For DIVERGE and CRITIQUE, we want the AI to know the current PERSPECTIVE (base_focus)
+    # For REFINE, we want the specific MARKED paragraphs (final_user_text) for replacement logic.
+    prompt_focus = base_focus if action in [ActionType.DIVERGE, ActionType.CRITIQUE] else final_user_text
+    prompt = build_prompt(action, prompt_focus, instructions=constraints_str)
     
     logger.info(f"🧠 CONTROLLER: Calling AI for action={action.name} | Focus={focus_mode}")
     
