@@ -778,10 +778,28 @@ def main():
             pass
         
         # 2. Sidebar View Selector
+        
+        # Determine default index logic:
+        # If we have PENDING edits, default to Refine View (index 1) unless user manually switched.
+        # If we just applied a refine, we WANT to stay in Refine View to see others.
+        default_index = 0
+        has_pending = st.session_state.get("pending_refine_edits") and any(p["status"] == "pending" for p in st.session_state.pending_refine_edits)
+        
+        if has_pending:
+             default_index = 1
+        
+        # If 'sidebar_view_toggle' isn't in state yet, set it based on logic
+        if "sidebar_view_toggle" not in st.session_state:
+             st.session_state.sidebar_view_toggle = ["🗺️ Thought Map", "✨ Refine Review"][default_index]
+
+        # Force view to Refine if we have pending items and just applied one (to prevent flipping back)
+        if st.session_state.get("just_applied_refine") and has_pending:
+             default_index = 1
+
         sidebar_view = st.radio(
             "View:",
             ["🗺️ Thought Map", "✨ Refine Review"],
-            index=1 if st.session_state.get("pending_refine_edits") and any(p["status"] == "pending" for p in st.session_state.pending_refine_edits) else 0,
+            index=default_index,
             horizontal=True,
             key="sidebar_view_toggle",
             label_visibility="collapsed"
@@ -1237,17 +1255,21 @@ def main():
                 b_idx_raw = st.session_state.get("promo_block_selector_idx", 0)
                 b_idx = b_idx_raw + 1
                 
-                t_text = ""
-                if f_mode == "Specific Paragraph" and paras:
-                    t_text = paras[max(0, min(b_idx_raw, len(paras)-1))]
-                else:
-                    no_css = re.sub(r"<style.*?>.*?</style>", "", current_html, flags=re.DOTALL | re.IGNORECASE)
-                    txt_s = re.sub(r"<(p|div|h[1-6]|li|blockquote|br)[^>]*>", "\n", no_css)
-                    txt_s = re.sub(r"</(p|div|h[1-6]|li|blockquote)>", "\n", txt_s)
-                    t_text = re.sub("<[^<]+?>", "", txt_s).replace("&nbsp;", " ").strip()
-                    t_text = re.sub(r"\n{3,}", "\n\n", t_text)
-                    if not t_text and current_html.strip():
-                        t_text = re.sub("<[^<]+?>", "", current_html).strip()
+                # CRITICAL FIX: Use exactly what was shown in the AI Focus Preview
+                t_text = st.session_state.get("focused_text", "")
+                
+                # Fallback only if empty (should not happen if UI rendered correctly)
+                if not t_text:
+                    if f_mode == "Specific Paragraph" and paras:
+                        t_text = paras[max(0, min(b_idx_raw, len(paras)-1))]
+                    else:
+                        no_css = re.sub(r"<style.*?>.*?</style>", "", current_html, flags=re.DOTALL | re.IGNORECASE)
+                        txt_s = re.sub(r"<(p|div|h[1-6]|li|blockquote|br)[^>]*>", "\n", no_css)
+                        txt_s = re.sub(r"</(p|div|h[1-6]|li|blockquote)>", "\n", txt_s)
+                        t_text = re.sub("<[^<]+?>", "", txt_s).replace("&nbsp;", " ").strip()
+                        t_text = re.sub(r"\n{3,}", "\n\n", t_text)
+                        if not t_text and current_html.strip():
+                            t_text = re.sub("<[^<]+?>", "", current_html).strip()
 
                 logger.info(f"⚡ FINAL EXEC: {payload['action'].name} | Focus={f_mode}")
                 

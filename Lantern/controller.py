@@ -589,6 +589,10 @@ def _handle_action(tree: Dict, event_context: Dict[str, Any], system_rules: str)
                     orig_clean = re.sub(r"\[P\s*\d+\]", "", orig_raw, flags=re.IGNORECASE).strip()
                     prop_clean = re.sub(r"\[P\s*\d+\]", "", prop_raw, flags=re.IGNORECASE).strip()
                     
+                    # Fix: Strip leading/trailing ellipsis that the AI might add as context
+                    orig_clean = re.sub(r"^\s*(?:\.\.\.|…)\s*|\s*(?:\.\.\.|…)\s*$", "", orig_clean).strip()
+                    prop_clean = re.sub(r"^\s*(?:\.\.\.|…)\s*|\s*(?:\.\.\.|…)\s*$", "", prop_clean).strip()
+                    
                     # Determine scope label
                     focus_ctx = event_context.get("focus_context", {})
                     focus_mode = focus_ctx.get("mode", "Whole Document")
