@@ -1,0 +1,330 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project version="4">
+  <component name="AutoImportSettings">
+    <option name="autoReloadType" value="SELECTIVE" />
+  </component>
+  <component name="ChangeListManager">
+    <list default="true" id="54520ab8-177c-478e-bfef-27c386baaa67" name="Changes" comment="bug fixes in app.py" />
+    <option name="SHOW_DIALOG" value="false" />
+    <option name="HIGHLIGHT_CONFLICTS" value="true" />
+    <option name="HIGHLIGHT_NON_ACTIVE_CHANGELIST" value="false" />
+    <option name="LAST_RESOLUTION" value="IGNORE" />
+  </component>
+  <component name="FileTemplateManagerImpl">
+    <option name="RECENT_TEMPLATES">
+      <list>
+        <option value="Python Script" />
+      </list>
+    </option>
+  </component>
+  <component name="Git.Settings">
+    <option name="RECENT_BRANCH_BY_REPOSITORY">
+      <map>
+        <entry key="$PROJECT_DIR$/.." value="57c44b21cc16efd2145b5f2c3a55bf81a579d991" />
+      </map>
+    </option>
+    <option name="RECENT_GIT_ROOT_PATH" value="$PROJECT_DIR$/.." />
+  </component>
+  <component name="GitHubPullRequestSearchHistory">{
+  &quot;lastFilter&quot;: {
+    &quot;state&quot;: &quot;OPEN&quot;,
+    &quot;assignee&quot;: &quot;nelad1997&quot;
+  }
+}</component>
+  <component name="GithubPullRequestsUISettings">{
+  &quot;selectedUrlAndAccountId&quot;: {
+    &quot;url&quot;: &quot;https://github.com/nelad1997/Lantern&quot;,
+    &quot;accountId&quot;: &quot;4d2bde8a-fecb-4b1f-8635-0face1ffb9f4&quot;
+  }
+}</component>
+  <component name="ProjectColorInfo">{
+  &quot;associatedIndex&quot;: 5
+}</component>
+  <component name="ProjectId" id="384Yj3YAltEd2iSDyoQp9Z2oEXP" />
+  <component name="ProjectLevelVcsManager">
+    <ConfirmationsSetting value="2" id="Add" />
+  </component>
+  <component name="ProjectViewState">
+    <option name="hideEmptyMiddlePackages" value="true" />
+    <option name="showLibraryContents" value="true" />
+  </component>
+  <component name="PropertiesComponent"><![CDATA[{
+  "keyToString": {
+    "Python.app.executor": "Run",
+    "RunOnceActivity.ShowReadmeOnStart": "true",
+    "RunOnceActivity.git.unshallow": "true",
+    "git-widget-placeholder": "main",
+    "last_opened_file_path": "C:/Users/eladn/hwTechnion/Final_Project",
+    "node.js.detected.package.eslint": "true",
+    "node.js.detected.package.tslint": "true",
+    "node.js.selected.package.eslint": "(autodetect)",
+    "node.js.selected.package.tslint": "(autodetect)",
+    "nodejs_package_manager_path": "npm",
+    "settings.editor.selected.configurable": "com.jetbrains.python.configuration.PyActiveSdkModuleConfigurable",
+    "vue.rearranger.settings.migration": "true"
+  },
+  "keyToStringList": {
+    "DatabaseDriversLRU": [
+      "postgresql"
+    ]
+  }
+}]]></component>
+  <component name="RunManager">
+    <configuration default="true" type="DjangoTestsConfigurationType">
+      <option name="ENV_FILES" value="" />
+      <option name="INTERPRETER_OPTIONS" value="" />
+      <option name="PARENT_ENVS" value="true" />
+      <envs>
+        <env name="PYTHONUNBUFFERED" value="1" />
+      </envs>
+      <option name="SDK_HOME" value="" />
+      <option name="WORKING_DIRECTORY" value="" />
+      <option name="IS_MODULE_SDK" value="false" />
+      <option name="ADD_CONTENT_ROOTS" value="true" />
+      <option name="ADD_SOURCE_ROOTS" value="true" />
+      <module name="" />
+      <EXTENSION ID="PythonCoverageRunConfigurationExtension" runner="coverage.py" />
+      <option name="TARGET" value="" />
+      <option name="SETTINGS_FILE" value="" />
+      <option name="CUSTOM_SETTINGS" value="false" />
+      <option name="USE_OPTIONS" value="false" />
+      <option name="OPTIONS" value="" />
+      <method v="2" />
+    </configuration>
+    <configuration default="true" type="PythonConfigurationType" factoryName="Python">
+      <option name="ENV_FILES" value="" />
+      <option name="INTERPRETER_OPTIONS" value="" />
+      <option name="PARENT_ENVS" value="true" />
+      <envs>
+        <env name="PYTHONUNBUFFERED" value="1" />
+      </envs>
+      <option name="SDK_HOME" value="" />
+      <option name="WORKING_DIRECTORY" value="" />
+      <option name="IS_MODULE_SDK" value="false" />
+      <option name="ADD_CONTENT_ROOTS" value="true" />
+      <option name="ADD_SOURCE_ROOTS" value="true" />
+      <module name="" />
+      <EXTENSION ID="PythonCoverageRunConfigurationExtension" runner="coverage.py" />
+      <option name="SCRIPT_NAME" value="" />
+      <option name="PARAMETERS" value="" />
+      <option name="SHOW_COMMAND_LINE" value="false" />
+      <option name="EMULATE_TERMINAL" value="false" />
+      <option name="MODULE_MODE" value="false" />
+      <option name="REDIRECT_INPUT" value="false" />
+      <option name="INPUT_FILE" value="" />
+      <method v="2" />
+    </configuration>
+    <configuration default="true" type="Python.FlaskServer">
+      <option name="ENV_FILES" value="" />
+      <option name="INTERPRETER_OPTIONS" value="" />
+      <option name="PARENT_ENVS" value="true" />
+      <option name="SDK_HOME" value="" />
+      <option name="WORKING_DIRECTORY" value="" />
+      <option name="IS_MODULE_SDK" value="false" />
+      <option name="ADD_CONTENT_ROOTS" value="true" />
+      <option name="ADD_SOURCE_ROOTS" value="true" />
+      <module name="" />
+      <EXTENSION ID="PythonCoverageRunConfigurationExtension" runner="coverage.py" />
+      <option name="launchJavascriptDebuger" value="false" />
+      <method v="2" />
+    </configuration>
+    <configuration default="true" type="Tox" factoryName="Tox">
+      <option name="ENV_FILES" value="" />
+      <option name="INTERPRETER_OPTIONS" value="" />
+      <option name="PARENT_ENVS" value="true" />
+      <option name="SDK_HOME" value="" />
+      <option name="WORKING_DIRECTORY" value="" />
+      <option name="IS_MODULE_SDK" value="false" />
+      <option name="ADD_CONTENT_ROOTS" value="true" />
+      <option name="ADD_SOURCE_ROOTS" value="true" />
+      <EXTENSION ID="PythonCoverageRunConfigurationExtension" runner="coverage.py" />
+      <method v="2" />
+    </configuration>
+    <configuration default="true" type="docs" factoryName="Docutils task">
+      <option name="ENV_FILES" value="" />
+      <option name="INTERPRETER_OPTIONS" value="" />
+      <option name="PARENT_ENVS" value="true" />
+      <option name="SDK_HOME" value="" />
+      <option name="WORKING_DIRECTORY" value="" />
+      <option name="IS_MODULE_SDK" value="false" />
+      <option name="ADD_CONTENT_ROOTS" value="true" />
+      <option name="ADD_SOURCE_ROOTS" value="true" />
+      <module name="" />
+      <option name="docutils_input_file" value="" />
+      <option name="docutils_output_file" value="" />
+      <option name="docutils_params" value="" />
+      <option name="docutils_task" value="" />
+      <option name="docutils_open_in_browser" value="false" />
+      <method v="2" />
+    </configuration>
+    <configuration default="true" type="docs" factoryName="Sphinx task">
+      <option name="ENV_FILES" value="" />
+      <option name="INTERPRETER_OPTIONS" value="" />
+      <option name="PARENT_ENVS" value="true" />
+      <option name="SDK_HOME" value="" />
+      <option name="WORKING_DIRECTORY" value="" />
+      <option name="IS_MODULE_SDK" value="false" />
+      <option name="ADD_CONTENT_ROOTS" value="true" />
+      <option name="ADD_SOURCE_ROOTS" value="true" />
+      <module name="" />
+      <option name="docutils_input_file" value="" />
+      <option name="docutils_output_file" value="" />
+      <option name="docutils_params" value="" />
+      <option name="docutils_task" value="" />
+      <option name="docutils_open_in_browser" value="false" />
+      <method v="2" />
+    </configuration>
+    <configuration default="true" type="tests" factoryName="Doctests">
+      <option name="ENV_FILES" value="" />
+      <option name="INTERPRETER_OPTIONS" value="" />
+      <option name="PARENT_ENVS" value="true" />
+      <option name="SDK_HOME" value="" />
+      <option name="WORKING_DIRECTORY" value="" />
+      <option name="IS_MODULE_SDK" value="false" />
+      <option name="ADD_CONTENT_ROOTS" value="true" />
+      <option name="ADD_SOURCE_ROOTS" value="true" />
+      <module name="" />
+      <EXTENSION ID="PythonCoverageRunConfigurationExtension" runner="coverage.py" />
+      <option name="SCRIPT_NAME" value="" />
+      <option name="CLASS_NAME" value="" />
+      <option name="METHOD_NAME" value="" />
+      <option name="FOLDER_NAME" value="" />
+      <option name="TEST_TYPE" value="TEST_SCRIPT" />
+      <option name="PATTERN" value="" />
+      <option name="USE_PATTERN" value="false" />
+      <method v="2" />
+    </configuration>
+  </component>
+  <component name="SharedIndexes">
+    <attachedChunks>
+      <set>
+        <option value="bundled-js-predefined-d6986cc7102b-deb605915726-JavaScript-PY-243.22562.180" />
+        <option value="bundled-python-sdk-85c76a3b01b3-9a18a617cbe4-com.jetbrains.pycharm.pro.sharedIndexes.bundled-PY-243.22562.180" />
+      </set>
+    </attachedChunks>
+  </component>
+  <component name="SpellCheckerSettings" RuntimeDictionaries="0" Folders="0" CustomDictionaries="0" DefaultDictionary="application-level" UseSingleDictionary="true" transferred="true" />
+  <component name="TaskManager">
+    <task active="true" id="Default" summary="Default task">
+      <changelist id="54520ab8-177c-478e-bfef-27c386baaa67" name="Changes" comment="" />
+      <created>1768060441617</created>
+      <option name="number" value="Default" />
+      <option name="presentableId" value="Default" />
+      <updated>1768060441617</updated>
+      <workItem from="1768060442724" duration="1661000" />
+      <workItem from="1768062131112" duration="9582000" />
+      <workItem from="1768302559860" duration="11643000" />
+      <workItem from="1768384857710" duration="19502000" />
+      <workItem from="1768761622635" duration="149000" />
+      <workItem from="1768842484401" duration="31167000" />
+      <workItem from="1768942605112" duration="3287000" />
+      <workItem from="1769106441370" duration="38913000" />
+    </task>
+    <task id="LOCAL‎-00001" summary="Start of project">
+      <option name="closed" value="true" />
+      <created>1768060577296</created>
+      <option name="number" value="00001" />
+      <option name="presentableId" value="LOCAL‎-00001" />
+      <option name="project" value="LOCAL‎" />
+      <updated>1768060577296</updated>
+    </task>
+    <task id="LOCAL‎-00002" summary="Start of project">
+      <option name="closed" value="true" />
+      <created>1768061048059</created>
+      <option name="number" value="00002" />
+      <option name="presentableId" value="LOCAL‎-00002" />
+      <option name="project" value="LOCAL‎" />
+      <updated>1768061048059</updated>
+    </task>
+    <task id="LOCAL‎-00003" summary="FIXES AND IMPLEMENTATION OF ENC AND PROMPT BUILDER">
+      <option name="closed" value="true" />
+      <created>1768310499868</created>
+      <option name="number" value="00003" />
+      <option name="presentableId" value="LOCAL‎-00003" />
+      <option name="project" value="LOCAL‎" />
+      <updated>1768310499868</updated>
+    </task>
+    <task id="LOCAL‎-00004" summary="FIXES AND IMPLEMENTATION OF ENC AND PROMPT BUILDER">
+      <option name="closed" value="true" />
+      <created>1768310529617</created>
+      <option name="number" value="00004" />
+      <option name="presentableId" value="LOCAL‎-00004" />
+      <option name="project" value="LOCAL‎" />
+      <updated>1768310529617</updated>
+    </task>
+    <task id="LOCAL‎-00005" summary="firs results and intial app">
+      <option name="closed" value="true" />
+      <created>1768319370218</created>
+      <option name="number" value="00005" />
+      <option name="presentableId" value="LOCAL‎-00005" />
+      <option name="project" value="LOCAL‎" />
+      <updated>1768319370218</updated>
+    </task>
+    <task id="LOCAL‎-00006" summary="some visual changes in app.py">
+      <option name="closed" value="true" />
+      <created>1768578708773</created>
+      <option name="number" value="00006" />
+      <option name="presentableId" value="LOCAL‎-00006" />
+      <option name="project" value="LOCAL‎" />
+      <updated>1768578708773</updated>
+    </task>
+    <task id="LOCAL‎-00007" summary="- Added clear tooltips to all reasoning action buttons (Expand, Critique, Refine, Select, Pin)&#10;- Introduced a visual action bar to distinguish AI reasoning actions from text editing&#10;- Fixed state reset issues caused by reruns (preserving editor content on Pin actions)&#10;- Corrected misuse of child-related variables in critique handling&#10;- Improved parsing of LLM outputs to prevent splitting titles and explanations into separate nodes&#10;- Refined button key usage to avoid collisions and unstable UI behavior&#10;- Enhanced visual hierarchy (logo sizing, spacing, and emphasis)&#10;- Strengthened conceptual separation between committing to a path (Select) and preserving alternatives (Pin)">
+      <option name="closed" value="true" />
+      <created>1768857638619</created>
+      <option name="number" value="00007" />
+      <option name="presentableId" value="LOCAL‎-00007" />
+      <option name="project" value="LOCAL‎" />
+      <updated>1768857638619</updated>
+    </task>
+    <task id="LOCAL‎-00008" summary="We updated the app.py file to support visual Track Changes for the Refine action, while preserving the existing Lantern interaction flow.&#10;&#10;Refine Button Handling (Left Panel)&#10;The Refine button now captures the response returned by handle_event.&#10;When the controller returns a refinement result (mode=&quot;refine&quot;), the returned diff_html is stored in st.session_state[&quot;last_refine_diff&quot;] instead of modifying the editor or creating a new reasoning node.&#10;&#10;Right Sidebar: Refine Diff Display&#10;A new section was added to the right sidebar that conditionally displays the stored diff_html.&#10;The changes are rendered as styled HTML (Track Changes–like visualization), clearly separated from critiques and suggested paths.&#10;&#10;User Control &amp; State Management&#10;The refinement preview is non-destructive:&#10;&#10;The editor content is not automatically modified.&#10;&#10;The reasoning tree is not altered.&#10;&#10;Users can explicitly dismiss the refinement using a dedicated button, which clears the stored diff from the session state.&#10;&#10;Preserved Interaction Semantics&#10;&#10;Expand continues to generate new reasoning paths.&#10;&#10;Critique continues to surface counter-perspectives.&#10;&#10;Refine now functions strictly as a scaffolding mechanism, providing visual suggestions without branching or overwriting content.">
+      <option name="closed" value="true" />
+      <created>1768908765210</created>
+      <option name="number" value="00008" />
+      <option name="presentableId" value="LOCAL‎-00008" />
+      <option name="project" value="LOCAL‎" />
+      <updated>1768908765210</updated>
+    </task>
+    <task id="LOCAL‎-00009" summary="bug fixes in app.py">
+      <option name="closed" value="true" />
+      <created>1768914660287</created>
+      <option name="number" value="00009" />
+      <option name="presentableId" value="LOCAL‎-00009" />
+      <option name="project" value="LOCAL‎" />
+      <updated>1768914660287</updated>
+    </task>
+    <task id="LOCAL‎-00010" summary="bug fixes in app.py">
+      <option name="closed" value="true" />
+      <created>1768914788023</created>
+      <option name="number" value="00010" />
+      <option name="presentableId" value="LOCAL‎-00010" />
+      <option name="project" value="LOCAL‎" />
+      <updated>1768914788023</updated>
+    </task>
+    <task id="LOCAL‎-00011" summary="bug fixes in app.py">
+      <option name="closed" value="true" />
+      <created>1768915511911</created>
+      <option name="number" value="00011" />
+      <option name="presentableId" value="LOCAL‎-00011" />
+      <option name="project" value="LOCAL‎" />
+      <updated>1768915511911</updated>
+    </task>
+    <option name="localTasksCounter" value="12" />
+    <servers />
+  </component>
+  <component name="TypeScriptGeneratedFilesManager">
+    <option name="version" value="3" />
+  </component>
+  <component name="VcsManagerConfiguration">
+    <MESSAGE value="Start of project" />
+    <MESSAGE value="FIXES AND IMPLEMENTATION OF ENC AND PROMPT BUILDER" />
+    <MESSAGE value="firs results and intial app" />
+    <MESSAGE value="some visual changes in app.py" />
+    <MESSAGE value="- Added clear tooltips to all reasoning action buttons (Expand, Critique, Refine, Select, Pin)&#10;- Introduced a visual action bar to distinguish AI reasoning actions from text editing&#10;- Fixed state reset issues caused by reruns (preserving editor content on Pin actions)&#10;- Corrected misuse of child-related variables in critique handling&#10;- Improved parsing of LLM outputs to prevent splitting titles and explanations into separate nodes&#10;- Refined button key usage to avoid collisions and unstable UI behavior&#10;- Enhanced visual hierarchy (logo sizing, spacing, and emphasis)&#10;- Strengthened conceptual separation between committing to a path (Select) and preserving alternatives (Pin)" />
+    <MESSAGE value="We updated the app.py file to support visual Track Changes for the Refine action, while preserving the existing Lantern interaction flow.&#10;&#10;Refine Button Handling (Left Panel)&#10;The Refine button now captures the response returned by handle_event.&#10;When the controller returns a refinement result (mode=&quot;refine&quot;), the returned diff_html is stored in st.session_state[&quot;last_refine_diff&quot;] instead of modifying the editor or creating a new reasoning node.&#10;&#10;Right Sidebar: Refine Diff Display&#10;A new section was added to the right sidebar that conditionally displays the stored diff_html.&#10;The changes are rendered as styled HTML (Track Changes–like visualization), clearly separated from critiques and suggested paths.&#10;&#10;User Control &amp; State Management&#10;The refinement preview is non-destructive:&#10;&#10;The editor content is not automatically modified.&#10;&#10;The reasoning tree is not altered.&#10;&#10;Users can explicitly dismiss the refinement using a dedicated button, which clears the stored diff from the session state.&#10;&#10;Preserved Interaction Semantics&#10;&#10;Expand continues to generate new reasoning paths.&#10;&#10;Critique continues to surface counter-perspectives.&#10;&#10;Refine now functions strictly as a scaffolding mechanism, providing visual suggestions without branching or overwriting content." />
+    <MESSAGE value="bug fixes in app.py" />
+    <option name="LAST_COMMIT_MESSAGE" value="bug fixes in app.py" />
+  </component>
+  <component name="com.intellij.coverage.CoverageDataManagerImpl">
+    <SUITE FILE_PATH="coverage/Lantern$app.coverage" NAME="app Coverage Results" MODIFIED="1768577223287" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="false" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$" />
+  </component>
+</project>
