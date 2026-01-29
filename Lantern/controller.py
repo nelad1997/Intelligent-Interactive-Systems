@@ -6,6 +6,9 @@ from definitions import ActionType, UserEventType
 from tree import add_child, navigate_to_node
 from prompt_builder import build_prompt
 from llm_client import call_llm
+import logging
+
+logger = logging.getLogger(__name__)
 
 
 # --- פונקציות עזר לטעינה וניהול ---

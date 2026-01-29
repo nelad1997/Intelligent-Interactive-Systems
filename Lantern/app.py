@@ -1300,9 +1300,5 @@ def main():
                                 st.session_state.dismissed_suggestions.add(cid)
                                 st.rerun()
 
-
-                st.session_state.is_thinking = False
-                st.rerun()
-
 if __name__ == "__main__":
     main()
