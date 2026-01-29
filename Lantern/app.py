@@ -54,11 +54,8 @@ except Exception:
 
 st.set_page_config(page_title="Lantern", page_icon=page_logo, layout="wide")
 
-# Helper to load logo for markdown display
-logo_base64 = None
-if os.path.exists(logo_full_path):
-    with open(logo_full_path, "rb") as f:
-        logo_base64 = base64.b64encode(f.read()).decode()
+# Helper for logo path resolution
+logo_path = logo_full_path if os.path.exists(logo_full_path) else None
 
 
 # -------------------------------------------------
@@ -936,10 +933,9 @@ def main():
     # RIGHT COLUMN: INTERACTION & CONTEXT
     # ==========================================
     with col_lantern:
-        if logo_base64:
-            st.markdown(
-                f'<div style="display: flex; flex-direction: column; align-items: center; margin-bottom: 5px;"><img src="data:image/jpeg;base64,{logo_base64}" style="width: 70px; opacity: 0.9;"></div>',
-                unsafe_allow_html=True)
+        if logo_path:
+             # Use st.image for better reliability on cloud
+             st.image(logo_path, width=80)
 
         # --- NEW: Tooltip & System Explanation ---
         st.markdown(
