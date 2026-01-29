@@ -390,16 +390,20 @@ def main():
         st.session_state.ai_info_message = None
     if "just_applied_refine" not in st.session_state:
         st.session_state.just_applied_refine = False
-    if "logical_paragraphs" not in st.session_state:
-        st.session_state.logical_paragraphs = []
-    if "structural_segments" not in st.session_state:
-        st.session_state.structural_segments = []
-    if "last_edit_time" not in st.session_state:
-        st.session_state.last_edit_time = 0
-    if "promo_focus_mode" not in st.session_state:
-        st.session_state.promo_focus_mode = "Whole Document"
     if "promo_block_selector_idx" not in st.session_state:
         st.session_state.promo_block_selector_idx = 0
+    if "promo_focus_mode" not in st.session_state:
+        st.session_state.promo_focus_mode = "Whole Document"
+    
+    # --- GLOBAL STRUCTURAL SYNC ---
+    # Ensure segments exist before ANY logic or UI starts
+    current_html = st.session_state.get("editor_html", "")
+    if current_html.strip():
+        # Only re-fetch if empty to provide a stable substrate
+        if not st.session_state.get("structural_segments"):
+            st.session_state.structural_segments = get_structural_segments(current_html)
+    else:
+        st.session_state.structural_segments = []
 
     tree = st.session_state.tree
     current_node = get_current_node(tree)
@@ -438,21 +442,10 @@ def main():
             "⚠️ IMPORTANT: If you make significant changes to your draft, please go to 'Paragraph Segmentation' below and click 'Refresh' to ensure the AI's focus remains accurate."
         )
 
-        # --- Focus Context Logical Calculations ---
-        current_html = st.session_state.get("editor_html", "")
-        
-        # Stability: Ensure segments exist before logic starts
-        if not st.session_state.get("structural_segments") and current_html.strip():
-            st.session_state.structural_segments = get_structural_segments(current_html)
-
-        # Use structural segments as the stable substrate
         paragraphs_only = st.session_state.get("structural_segments", [])
-        
-        # Semantic mapping (logical paragraphs) is now a decoupled layer
-        # ... (logic below remains mostly same but uses paragraphs_only)
         focus_mode = st.session_state.get("promo_focus_mode", "Whole Document")
 
-        # UI moved below buttons
+        # Target text calculation for AI context
         target_text = ""
         block_idx = 1
         
@@ -465,6 +458,7 @@ def main():
             target_text = paragraphs_only[block_idx_raw]
         else:
             # Robust Full Doc Extraction
+            current_html = st.session_state.get("editor_html", "")
             # 1. Remove styles
             no_css = re.sub(r"<style.*?>.*?</style>", "", current_html, flags=re.DOTALL | re.IGNORECASE)
             # 2. Add newlines for block tags to preserve structure
@@ -479,9 +473,6 @@ def main():
             if not target_text and current_html.strip():
                  target_text = re.sub("<[^<]+?>", "", current_html).strip()
 
-        # The 'focused_text' and 'block_idx' variables are now primarily for the PREVIEW UI.
-        # The actual text sent to the AI will be recalculated at the moment of execution
-        # to ensure it uses the absolute latest widget states.
         st.session_state["focused_text"] = target_text
         st.session_state["focus_scope_label"] = "Whole Document" if focus_mode == "Whole Document" else f"Paragraph {block_idx}"
 
@@ -540,11 +531,8 @@ def main():
                     unsafe_allow_html=True
                 )
                 
-                # RE-FETCH/VERIFY paragraphs for this specific tab to prevent "disappearing" bug
+                # Use globally initialized segments
                 current_paras = st.session_state.get("structural_segments", [])
-                if not current_paras and st.session_state.get("editor_html", "").strip():
-                    st.session_state.structural_segments = get_structural_segments(st.session_state.get("editor_html", ""))
-                    current_paras = st.session_state.structural_segments
 
                 focus_choice = st.radio(
                     "Select AI Focus Range:",
@@ -570,17 +558,18 @@ def main():
                             options.append(f"[{i+1}] {preview}")
                         
                         saved_idx = st.session_state.get("promo_block_selector_idx", 0)
-                        if saved_idx >= len(options):
-                            saved_idx = 0
+                        # Bounds check
+                        safe_idx = max(0, min(saved_idx, len(options)-1))
                             
                         st.radio(
                             "Select Target Paragraph:",
                             options=options,
-                            index=saved_idx,
+                            index=safe_idx,
                             key="promo_block_radio_selector",
                             label_visibility="collapsed",
                             on_change=sync_paragraph_selection
                         )
+                        # Execute sync immediately to capture changes
                         sync_paragraph_selection()
                     else:
                         st.warning("No paragraphs detected. Type some text first.")
