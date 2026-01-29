@@ -330,6 +330,9 @@ def parse_llm_options(llm_output: str) -> List[str]:
 def handle_event(tree: Dict, event_type: UserEventType, event_context: Optional[Dict[str, Any]] = None) -> Dict:
     event_context = event_context or {}
     action = event_context.get("action")
+    
+    logger.info(f"🎮 EVENT: Type={event_type.name} | Action={action.name if action else 'None'}")
+    
     system_rules = load_academic_principles(action)
 
     if event_type == UserEventType.ACTION:
@@ -345,6 +348,8 @@ def _handle_action(tree: Dict, event_context: Dict[str, Any], system_rules: str)
     action = event_context.get("action")
     user_text = event_context.get("user_text")
     pinned_context = event_context.get("pinned_context", [])
+
+    logger.info(f"🛠️ HANDLING ACTION: {action.name} | Text Length: {len(user_text) if user_text else 0}")
 
     if not isinstance(action, ActionType):
         raise ValueError("Invalid or missing ActionType")
@@ -420,8 +425,12 @@ def _handle_action(tree: Dict, event_context: Dict[str, Any], system_rules: str)
     constraints_str = "\n".join(constraints) if constraints else ""
     prompt = build_prompt(action, final_user_text, instructions=constraints_str)
     
+    logger.info(f"🧠 CONTROLLER: Calling AI for action={action.name} | Focus={focus_mode}")
+    
     # We leverage the 'system_instruction' parameter to optimize prompt size and stay within quota
     llm_output = call_llm(prompt, system_instruction=system_rules)
+    
+    logger.info(f"📥 CONTROLLER: AI response received ({len(llm_output)} chars)")
 
     if action == ActionType.DIVERGE:
         options = parse_llm_options(llm_output)
@@ -458,8 +467,8 @@ def _handle_action(tree: Dict, event_context: Dict[str, Any], system_rules: str)
                 else:
                     # אם לא מצאנו Explanation רשמי, ניקח את הכל אחרי ה-Module או ה-Title
                     explanation = re.sub(r"^(?:Title|Module).*?\n", "", clean_opt, flags=re.MULTILINE | re.IGNORECASE).strip()
-            except:
-                pass
+            except Exception as e:
+                logger.warning(f"⚠️ PARSING ERROR: Failed to parse AI option. Error: {e}")
 
             if not explanation or len(explanation) < 5: continue
 

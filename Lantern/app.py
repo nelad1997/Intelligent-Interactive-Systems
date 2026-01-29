@@ -1235,6 +1235,8 @@ def main():
                 # Re-fetch mode label for the spinner
                 m_label, _ = get_ui_state(tree)
                 
+                logger.info(f"⚡ UI TRIGGER: Action={payload['action'].name} | Focus={f_mode} | Text={len(final_text)} chars")
+                
                 with st.spinner(f"💡 Lantern is {m_label.lower()}..."):
                     response = handle_event(st.session_state.tree, UserEventType.ACTION, {
                         "action": payload["action"],

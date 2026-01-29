@@ -49,12 +49,14 @@ def call_llm(prompt: str, system_instruction: Optional[str] = None) -> str:
     """
     api_key = os.getenv("GEMINI_API_KEY")
     if not api_key:
-        logger.error("GEMINI_API_KEY is not set in environment variables")
-        raise RuntimeError("GEMINI_API_KEY is not set")
+        logger.error("CRITICAL: GEMINI_API_KEY is missing from environment variables!")
+        raise RuntimeError("מפתח ה-API (GEMINI_API_KEY) חסר. אנא הגדר אותו ב-Secrets של Streamlit Cloud.")
 
     # Safe logging to verify request metadata
     key_display = f"{api_key[:4]}...{api_key[-4:]}"
-    logger.info(f"🔑 Using API Key: {key_display} | Prompt Length: {len(prompt)} chars")
+    logger.info(f"🚀 INITIATING LLM CALL | Key: {key_display} | Prompt: {len(prompt)} chars")
+    if system_instruction:
+        logger.info(f"ℹ️ System Instruction Length: {len(system_instruction)} chars")
 
     genai.configure(api_key=api_key)
 
@@ -81,19 +83,25 @@ def call_llm(prompt: str, system_instruction: Optional[str] = None) -> str:
 
     for attempt in range(max_retries):
         try:
-            logger.info(f"🚀 Calling Gemini 2.5 Pro (Attempt {attempt + 1})...")
+            logger.info(f"📡 Calling Gemini 2.5 Pro (Attempt {attempt + 1}/{max_retries})...")
+            start_time = time.time()
             response = model.generate_content(prompt)
+            duration = time.time() - start_time
+            
+            logger.info(f"✅ API Response received in {duration:.2f}s")
 
             if not response or not hasattr(response, 'text') or not response.text:
                 # Check for blocked content
                 if hasattr(response, 'candidates') and response.candidates:
                     finish_reason = response.candidates[0].finish_reason
+                    logger.error(f"❌ Response Blocked. Reason: {finish_reason}")
                     if finish_reason == 3: # SAFETY
                          raise RuntimeError("The request was blocked by safety filters. Please try rephrasing.")
                 
-                logger.warning(f"Gemini returned an empty or blocked response.")
+                logger.warning(f"⚠️ Gemini returned an empty or blocked response.")
                 raise RuntimeError("Empty response from Gemini")
 
+            logger.info(f"📝 Response content length: {len(response.text)} chars")
             return response.text.strip()
 
         except Exception as e:
@@ -107,14 +115,14 @@ def call_llm(prompt: str, system_instruction: Optional[str] = None) -> str:
                     time.sleep(wait_time)
                     continue
                 else:
-                    logger.error("Rate limit exceeded consistently after multiple retries.")
+                    logger.error("❌ Rate limit exceeded consistently after multiple retries.")
                     raise RuntimeError("מכסת הפעולה הגיעה למקסימום. דגם ה-Pro דורש המתנה ארוכה יותר בין פעולות. אנא נסה שוב בעוד דקה.")
             
             if "400" in err_msg and "model" in err_msg.lower():
-                 logger.error(f"Invalid model name or configuration: {e}")
+                 logger.error(f"❌ Invalid model name or configuration: {e}")
                  raise RuntimeError("שגיאת תצורה במודל הבינה המלאכותית (Invalid Model).")
 
-            logger.error(f"Error during Gemini API call: {e}")
+            logger.error(f"❌ Error during Gemini API call: {e}")
             raise e
 
 # Legacy compatibility
