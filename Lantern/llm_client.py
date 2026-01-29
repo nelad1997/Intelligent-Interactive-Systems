@@ -109,7 +109,11 @@ def call_llm(prompt: str, system_instruction: Optional[str] = None) -> str:
 
         except Exception as e:
             err_msg = str(e)
-            # Handle Rate Limit (429) or Resource Exhausted
+            logger.error(f"❌ Gemini API Error: {err_msg}")
+            
+            # Catch specific empty content error to give a readable message
+            if "content" in err_msg and "empty" in err_msg:
+                 raise RuntimeError("Technical Error: The system generated an empty prompt. Please check if the document is empty.")
             if "429" in err_msg or "ResourceExhausted" in err_msg or "Quota" in err_msg:
                 if attempt < max_retries - 1:
                     # Randomized exponential backoff - more aggressive for Pro
