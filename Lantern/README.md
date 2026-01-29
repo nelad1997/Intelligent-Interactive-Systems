@@ -76,7 +76,9 @@ streamlit run app.py
 ---
 
 ## ☁️ Cloud Deployment
-Lantern is optimized for [Streamlit Cloud](https://share.streamlit.io/).
+Lantern is live and optimized for [Streamlit Cloud](https://lantern.streamlit.app/).
+
+To deploy your own version:
 1. Point Streamlit to the `Lantern/Lantern/app.py` path.
 2. Add your `GEMINI_API_KEY` to the **Secrets** section in the Streamlit Dashboard.
 3. The `packages.txt` file ensures Graphviz works out-of-the-box on the cloud server.
