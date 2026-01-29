@@ -167,17 +167,24 @@ def render_sidebar_map(tree, show_header: bool = True):
                 return
 
             if new_id != tree["current"]:
+                import logging
+                logger = logging.getLogger(__name__)
+                
                 # 1. Capture Current Draft before Leaving
+                old_id = tree["current"]
                 current_draft = st.session_state.get("editor_html", "")
                 if current_draft:
                     # Sync to the node we ARE CURRENTLY ON before moving
-                    tree["nodes"][tree["current"]].setdefault("metadata", {})["html"] = current_draft
+                    tree["nodes"][old_id].setdefault("metadata", {})["html"] = current_draft
+                    logger.info(f"🔄 NAV: Saved {len(current_draft)} chars to old node {old_id}")
                 
                 # 2. Perform Navigation
+                logger.info(f"🔄 NAV: Switching from {old_id} to {new_id}")
                 navigate_to_node(tree, new_id)
                 
                 # 3. Resolve Target Content (with robust fallback)
                 target_html = get_nearest_html(tree, new_id)
+                logger.info(f"🔄 NAV: Resolved target HTML (success={bool(target_html)})")
                 
                 # If target has NO saved state (like a new idea), 
                 # we keep the current draft if they are related, but get_nearest_html 
@@ -189,8 +196,9 @@ def render_sidebar_map(tree, show_header: bool = True):
                     st.session_state.editor_version = 0
                 st.session_state.editor_version += 1
                 
-                st.rerun()
-                # Auto-pin
+                logger.info(f"🔄 NAV: Complete. New node={new_id}, EditorVersion={st.session_state.editor_version}")
+                
+                # Auto-pin (MUST happen before rerun)
                 target_node = tree["nodes"][new_id]
                 if target_node.get("type") != "root":
                     meta = target_node.get("metadata", {})
@@ -202,10 +210,12 @@ def render_sidebar_map(tree, show_header: bool = True):
                         "scope": meta.get("scope", "Whole Document"),
                         "source_context": meta.get("source_context", "")
                     }
-                    tree_state = st.session_state.get("tree")
-                    if tree_state and "pinned_items" in tree_state:
-                         if not any(isinstance(item, dict) and item.get("id") == new_id for item in tree_state["pinned_items"]):
-                             tree_state["pinned_items"].append(pin_obj)
+                    if "pinned_items" in tree:
+                        if not any(isinstance(i, dict) and i.get("id") == new_id for i in tree["pinned_items"]):
+                             tree["pinned_items"].append(pin_obj)
+                             logger.info(f"📌 NAV: Auto-pinned node {new_id}")
+
+                st.rerun()
 
         try:
             current_index = visible_nodes.index(current_id)
