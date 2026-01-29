@@ -1126,7 +1126,7 @@ def main():
                         c_sel, c_pin, c_del = st.columns([1, 1, 1])
                         
                         with c_sel:
-                             if st.button("✔", key=f"cs_sel_{i}", help="Acknowledge this critique to strengthen your argument (Increments Thinking Depth counter)", use_container_width=True):
+                             if st.button("👍", key=f"cs_sel_{i}", help="Acknowledge this critique to strengthen your argument (Increments Thinking Depth counter)", use_container_width=True):
                                 # Add to persistent history (Increments Strengthened counter)
                                 unique_key = text[:50]
                                 if "bulletproof_history" not in st.session_state:
