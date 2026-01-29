@@ -1124,8 +1124,7 @@ def main():
             visible_children = []
             for cid in current_node["children"]:
                 if cid not in st.session_state.banned_ideas and \
-                   cid not in st.session_state.dismissed_suggestions and \
-                   not any(isinstance(p, dict) and p.get("id") == cid for p in st.session_state.tree["pinned_items"]):
+                   cid not in st.session_state.dismissed_suggestions:
                     visible_children.append({"id": cid, "source": "Current"})
 
             if visible_children:
