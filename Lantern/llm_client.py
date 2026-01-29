@@ -52,6 +52,13 @@ def call_llm(prompt: str, system_instruction: Optional[str] = None) -> str:
         logger.error("CRITICAL: GEMINI_API_KEY is missing from environment variables!")
         raise RuntimeError("מפתח ה-API (GEMINI_API_KEY) חסר. אנא הגדר אותו ב-Secrets של Streamlit Cloud.")
 
+    # Sanitization: Strip whitespace and accidental quotes from TOML parsing
+    original_len = len(api_key)
+    api_key = api_key.strip().strip("'").strip('"')
+    
+    if len(api_key) != original_len:
+         logger.warning(f"⚠️ API Key sanitized (removed quotes/spaces). New length: {len(api_key)}")
+
     # Safe logging to verify request metadata
     key_display = f"{api_key[:4]}...{api_key[-4:]}"
     logger.info(f"🚀 INITIATING LLM CALL | Key: {key_display} | Prompt: {len(prompt)} chars")
