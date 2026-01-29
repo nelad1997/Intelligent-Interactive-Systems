@@ -9,6 +9,14 @@ import fitz  # PyMuPDF
 from docx import Document
 import io
 import html  # Added for safe text escaping
+import sys
+import PIL.Image
+
+# --- Environment Hardening for Streamlit Cloud ---
+# Explicitly add the script's directory to sys.path to ensure local imports like 'definitions' are reliable
+current_dir = os.path.dirname(os.path.abspath(__file__))
+if current_dir not in sys.path:
+    sys.path.append(current_dir)
 
 # --- Imports ---
 from definitions import UserEventType, ActionType
@@ -32,7 +40,14 @@ load_dotenv(override=True)
 # -------------------------------------------------
 # Page Configuration
 # -------------------------------------------------
-st.set_page_config(page_title="Lantern", page_icon="🏮", layout="wide")
+# Load logo safely for page config
+logo_full_path = os.path.join(current_dir, "logo.jpg")
+try:
+    page_logo = PIL.Image.open(logo_full_path)
+except Exception:
+    page_logo = "🏮" # Fallback to emoji if file missing
+
+st.set_page_config(page_title="Lantern", page_icon=page_logo, layout="wide")
 
 
 # -------------------------------------------------
