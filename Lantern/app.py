@@ -43,25 +43,35 @@ except ImportError:
 load_dotenv()
 
 # -------------------------------------------------
-# Page Configuration
+# Page Configuration & Logo Loading
 # -------------------------------------------------
-# Load logo safely for page config
-logo_full_path = os.path.join(current_dir, "logo.jpg")
-if not os.path.exists(logo_full_path):
-    logo_full_path = os.path.join(os.getcwd(), "logo.jpg")
+# Robust Path Hunting: script dir, then cwd
+logo_search_paths = [
+    os.path.join(current_dir, "logo.jpg"),
+    os.path.join(os.getcwd(), "logo.jpg")
+]
+logo_full_path = None
+for p in logo_search_paths:
+    if os.path.exists(p):
+        logo_full_path = p
+        break
 
-try:
-    page_logo = PIL.Image.open(logo_full_path)
-except Exception:
-    page_logo = "🏮" # Fallback to emoji if file missing
+page_logo = "🏮"
+logo_base64 = None
+
+if logo_full_path:
+    try:
+        # Load for Page Icon
+        page_logo = PIL.Image.open(logo_full_path)
+        # Load for base64 Markdown display
+        with open(logo_full_path, "rb") as f:
+            logo_base64 = base64.b64encode(f.read()).decode()
+        logger.info(f"✅ LOGO LOAD SUCCESS: {logo_full_path} (base64 length: {len(logo_base64) if logo_base64 else 0})")
+    except Exception as e:
+        logger.error(f"❌ LOGO LOAD ERROR: {e}")
+        page_logo = "🏮"
 
 st.set_page_config(page_title="Lantern", page_icon=page_logo, layout="wide")
-
-# Helper to load logo for markdown display
-logo_base64 = None
-if os.path.exists(logo_full_path):
-    with open(logo_full_path, "rb") as f:
-        logo_base64 = base64.b64encode(f.read()).decode()
 
 
 # -------------------------------------------------
@@ -188,16 +198,7 @@ def load_project(json_str):
 # -------------------------------------------------
 # Image / Assets
 # -------------------------------------------------
-def get_base64_of_bin_file(bin_file):
-    try:
-        with open(bin_file, 'rb') as f:
-            return base64.b64encode(f.read()).decode()
-    except FileNotFoundError:
-        return None
-
-
-LOGO_FILENAME = "logo.jpg"
-logo_base64 = get_base64_of_bin_file(LOGO_FILENAME)
+# LOGO Loading moved to the top of the script for global availability and robustness.
 
 # -------------------------------------------------
 # Styling (CSS)
