@@ -23,8 +23,7 @@ Lantern is a specialized writing assistant designed to help human authors explor
    ```
 
 ### 3. Configuration
-1. Create a `.env` file in the root directory (based on `.env.template`).
-2. Add your Gemini API Key:
+Add your API Key to env.:
    ```env
    GEMINI_API_KEY=your_gemini_api_key_here
    ```
