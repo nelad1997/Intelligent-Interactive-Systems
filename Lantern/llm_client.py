@@ -12,7 +12,7 @@ from definitions import ActionType
 from prompt_builder import build_prompt
 
 # טעינת משתני סביבה
-load_dotenv(override=True)
+load_dotenv()
 
 # הגדרת לוגר
 logging.basicConfig(level=logging.INFO)
@@ -68,6 +68,9 @@ def call_llm(prompt: str, system_instruction: Optional[str] = None) -> str:
     }
 
     # model: Gemini 2.5 Pro (State-of-the-art reasoning)
+    if not system_instruction:
+        system_instruction = None
+        
     model = genai.GenerativeModel(
         model_name="gemini-2.5-pro",
         safety_settings=safety_settings,

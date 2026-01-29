@@ -40,7 +40,7 @@ try:
 except ImportError:
     HAS_REPORTLAB = False
 
-load_dotenv(override=True)
+load_dotenv()
 
 # -------------------------------------------------
 # Page Configuration
