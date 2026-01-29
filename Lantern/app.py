@@ -600,10 +600,20 @@ def main():
                             p_clean = re.sub(r"^(?:\[P\s*\d+\]|Block\s*\d+:?|\d+[\.)]|[*•\-])\s*", "", p, flags=re.IGNORECASE).strip()
                             preview = (p_clean[:60] + "...") if len(p_clean) > 60 else p_clean
                             
-                            # NEW: Identification of Title vs Paragraph
+                            # Improved Identification of Title/Header vs Paragraph
                             label_idx = f"{i+1}"
-                            if i == 0 and len(p_clean) < 120:
-                                label_idx = "Title"
+                            p_clean_stripped = p_clean.strip()
+                            
+                            # Heuristics:
+                            is_very_short = len(p_clean_stripped) < 60
+                            is_title_length = len(p_clean_stripped) < 250
+                            ends_with_punct = p_clean_stripped.endswith(('.', '?', '!', ':', ';'))
+                            
+                            if i == 0:
+                                if is_title_length:
+                                    label_idx = "Title"
+                            elif i < 5 and (is_very_short or (is_title_length and not ends_with_punct)):
+                                label_idx = f"H{i}" # e.g. H1, H2 for early short segments
                             
                             options.append(f"[{label_idx}] {preview}")
                         
@@ -772,18 +782,20 @@ def main():
                             # Use the first segment from our improved logic as the title
                             improved_segments = get_structural_segments(clean_html)
                             if improved_segments:
-                                first_seg = improved_segments[0]
-                                # If the first segment is "short enough" to be a title
-                                if len(first_seg) < 200:
+                                first_seg = improved_segments[0].strip()
+                                # More robust title detection for root labeling
+                                is_title_length = len(first_seg) < 250
+                                ends_with_punct = first_seg.endswith(('.', '?', '!'))
+                                
+                                if is_title_length and not (len(first_seg) > 100 and ends_with_punct):
                                     title_topic = re.sub(r"^(?:\[P\s*\d+\]|Block\s*\d+:?|\d+[\.)]|[*•\-])\s*", "", first_seg, flags=re.IGNORECASE).strip()
                                     if len(title_topic) > 60: title_topic = title_topic[:57] + "..."
                                     current_node["metadata"]["label"] = f"[{title_topic}]"
                                 else:
-                                    # If first segment is long, it's a paragraph, take a snippet
-                                    current_node["metadata"]["label"] = f"[{first_seg[:30]}...]"
+                                    # If first segment is long or clearly a sentence, take a tiny snippet
+                                    current_node["metadata"]["label"] = f"[{first_seg[:25]}...]"
                                 
-                                # Also update structural segments if they were empty or significantly changed
-                                # (But don't force rerun here as st_quill might be in mid-update)
+                                # Sync structural segments
                                 st.session_state.structural_segments = improved_segments
                         
                         st.session_state.last_edit_time = time.time()
