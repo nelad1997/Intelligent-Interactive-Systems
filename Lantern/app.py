@@ -461,20 +461,20 @@ def main():
                 
                 logger.info(f"⚡ UI TRIGGER: Action={payload['action'].name} | Focus={f_mode} | Text={len(final_text)} chars")
                 
-                with st.spinner(f"💡 Lantern is {m_label.lower()}..."):
-                    # Dynamic import to avoid circular dependency if any
-                    from controller import handle_event
-                    
-                    response = handle_event(st.session_state.tree, UserEventType.ACTION, {
-                        "action": payload["action"],
-                        "anchor_id": payload.get("anchor_id"),
-                        "pinned_context": st.session_state.tree["pinned_items"],
-                        "banned_ideas": st.session_state.banned_ideas,
-                        "user_text": final_text,
-                        "knowledge_base": st.session_state.get("knowledge_base", {}),
-                        "focus_context": f_context,
-                        "logical_paragraphs": st.session_state.get("structural_segments", [])
-                    })
+                # Removed st.spinner to restore original UX
+                # Dynamic import to avoid circular dependency if any
+                from controller import handle_event
+                
+                response = handle_event(st.session_state.tree, UserEventType.ACTION, {
+                    "action": payload["action"],
+                    "anchor_id": payload.get("anchor_id"),
+                    "pinned_context": st.session_state.tree["pinned_items"],
+                    "banned_ideas": st.session_state.banned_ideas,
+                    "user_text": final_text,
+                    "knowledge_base": st.session_state.get("knowledge_base", {}),
+                    "focus_context": f_context,
+                    "logical_paragraphs": st.session_state.get("structural_segments", [])
+                })
                 
                 if payload["action"] == ActionType.CRITIQUE:
                     items = response.get("items", [])

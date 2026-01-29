@@ -37,8 +37,8 @@ class RateLimiter:
                 time.sleep(wait_time)
             self.last_call_time = time.time()
 
-# Stricter cooldown for Pro models to avoid RPM limits
-_limiter = RateLimiter(cooldown_seconds=30.0)
+# Relaxed cooldown for better cloud responsiveness
+_limiter = RateLimiter(cooldown_seconds=1.0)
 
 
 
