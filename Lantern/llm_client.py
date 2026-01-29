@@ -52,6 +52,15 @@ def call_llm(prompt: str, system_instruction: Optional[str] = None) -> str:
         logger.error("CRITICAL: GEMINI_API_KEY is missing from environment variables!")
         raise RuntimeError("מפתח ה-API (GEMINI_API_KEY) חסר. אנא הגדר אותו ב-Secrets של Streamlit Cloud.")
 
+    genai.configure(api_key=api_key)
+
+    safety_settings = {
+        HarmCategory.HARM_CATEGORY_HARASSMENT: HarmBlockThreshold.BLOCK_ONLY_HIGH,
+        HarmCategory.HARM_CATEGORY_HATE_SPEECH: HarmBlockThreshold.BLOCK_ONLY_HIGH,
+        HarmCategory.HARM_CATEGORY_SEXUALLY_EXPLICIT: HarmBlockThreshold.BLOCK_ONLY_HIGH,
+        HarmCategory.HARM_CATEGORY_DANGEROUS_CONTENT: HarmBlockThreshold.BLOCK_ONLY_HIGH,
+    }
+
     # model: Gemini 2.5 Pro (State-of-the-art reasoning)
     if not system_instruction:
         system_instruction = None
