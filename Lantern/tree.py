@@ -54,11 +54,14 @@ def get_current_node(tree):
     return get_node(tree, tree["current"])
 
 def navigate_to_node(tree, node_id):
-    """Updates the current node pointer."""
-    if node_id in tree["nodes"]:
+    """Updates the current node pointer with defensive logging."""
+    if node_id in tree.get("nodes", {}):
         tree["current"] = node_id
     else:
-        raise ValueError(f"Node {node_id} not found")
+        import logging
+        logger = logging.getLogger(__name__)
+        logger.error(f"❌ NAVIGATION ERROR: Attempted to navigate to non-existent node ID: {node_id}")
+        raise ValueError(f"Node {node_id} not found in tree")
 
 def get_nearest_html(tree, node_id):
     """Recursively finds the nearest HTML metadata up the tree."""

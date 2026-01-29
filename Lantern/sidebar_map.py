@@ -200,8 +200,10 @@ def render_sidebar_map(tree, show_header: bool = True):
                         "scope": meta.get("scope", "Whole Document"),
                         "source_context": meta.get("source_context", "")
                     }
-                    if not any(isinstance(item, dict) and item.get("id") == new_id for item in st.session_state.tree["pinned_items"]):
-                        st.session_state.tree["pinned_items"].append(pin_obj)
+                    tree_state = st.session_state.get("tree")
+                    if tree_state and "pinned_items" in tree_state:
+                         if not any(isinstance(item, dict) and item.get("id") == new_id for item in tree_state["pinned_items"]):
+                             tree_state["pinned_items"].append(pin_obj)
 
         try:
             current_index = visible_nodes.index(current_id)
@@ -326,8 +328,9 @@ def render_sidebar_map(tree, show_header: bool = True):
             
             st.session_state.tree = init_tree("") # Start with empty root
             # Sync existing text to the new root node
-            root_id = st.session_state.tree["current"]
-            st.session_state.tree["nodes"][root_id].setdefault("metadata", {})["html"] = current_text
+            tree_ptr = st.session_state.tree
+            root_id = tree_ptr["current"]
+            tree_ptr["nodes"][root_id].setdefault("metadata", {})["html"] = current_text
             
             # Wiping session state context (AI history)
             st.session_state.banned_ideas = []

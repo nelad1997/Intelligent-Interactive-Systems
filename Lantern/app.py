@@ -32,7 +32,7 @@ load_dotenv(override=True)
 # -------------------------------------------------
 # Page Configuration
 # -------------------------------------------------
-st.set_page_config(page_title="Lantern", page_icon="C:/Users/eladn/.gemini/antigravity/brain/61e927cf-e0e9-4de5-aa37-2aabec6dc287/uploaded_media_1769473644151.png", layout="wide")
+st.set_page_config(page_title="Lantern", page_icon="🏮", layout="wide")
 
 
 # -------------------------------------------------
@@ -374,8 +374,11 @@ def main():
     if "tree" not in st.session_state:
         if not load_autosave():
             st.session_state.tree = init_tree("")
-    if "pinned_items" not in st.session_state.tree:
-        st.session_state.tree["pinned_items"] = []
+    
+    # DEFENSIVE: Check tree again before accessing nested properties
+    tree = st.session_state.get("tree")
+    if tree and "pinned_items" not in tree:
+        tree["pinned_items"] = []
     if "banned_ideas" not in st.session_state:
         st.session_state.banned_ideas = []
     if "selected_paths" not in st.session_state:
