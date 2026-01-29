@@ -420,6 +420,21 @@ def main():
     if "promo_focus_mode" not in st.session_state:
         st.session_state.promo_focus_mode = "Whole Document"
 
+    # --- CLOUD GUARDRAIL: Session State Integrity ---
+    from definitions import IS_CLOUD
+    if IS_CLOUD:
+        # In Streamlit Cloud, session state can be fragile.
+        # We ensure critical keys exist to prevent KeyErrors later.
+        required_keys = ["tree", "editor_html", "banned_ideas", "pending_refine_edits"]
+        for key in required_keys:
+            if key not in st.session_state:
+                import logging
+                logging.getLogger(__name__).warning(f"☁️ CLOUD STATE RECOVERY: Restoring missing key '{key}'")
+                if key == "tree": st.session_state.tree = init_tree("")
+                elif key == "editor_html": st.session_state.editor_html = ""
+                elif key == "banned_ideas": st.session_state.banned_ideas = []
+                elif key == "pending_refine_edits": st.session_state.pending_refine_edits = []
+
     
     # --- GLOBAL STRUCTURAL SYNC ---
     # Ensure segments exist before ANY logic or UI starts

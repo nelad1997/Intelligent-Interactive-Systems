@@ -431,7 +431,17 @@ def _handle_action(tree: Dict, event_context: Dict[str, Any], system_rules: str)
     logger.info(f"🧠 CONTROLLER: Calling AI for action={action.name} | Focus={focus_mode}")
     
     # We leverage the 'system_instruction' parameter to optimize prompt size and stay within quota
-    llm_output = call_llm(prompt, system_instruction=system_rules)
+    from definitions import IS_CLOUD
+    try:
+        llm_output = call_llm(prompt, system_instruction=system_rules)
+    except Exception as e:
+        if IS_CLOUD:
+            logger.error(f"☁️ CLOUD LLM FAILURE: {e}")
+            # Evaluate if we should return a UI error representation instead of crashing
+            return {"status": "error", "message": "The AI service is temporarily unavailable. Please try again."}
+        else:
+            # Local: Fail hard to show traceback
+            raise e
     
     logger.info(f"📥 CONTROLLER: AI response received ({len(llm_output)} chars)")
 

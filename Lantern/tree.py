@@ -55,6 +55,18 @@ def get_current_node(tree):
 
 def navigate_to_node(tree, node_id):
     """Updates the current node pointer with defensive logging."""
+    # CLOUD GUARDRAIL: Strict Check
+    # Prevents navigation if state is inconsistent (common in Streamlit Cloud reruns)
+    from definitions import IS_CLOUD
+    if IS_CLOUD:
+        if node_id not in tree.get("nodes", {}):
+            import logging
+            logger = logging.getLogger(__name__)
+            # In Cloud, we fallback to root or throw explicit error to prevent crash loop
+            logger.critical(f"☁️ CLOUD UNSAFE NAV: Target {node_id} missing. Reverting to root.")
+            # Fallback to current or root if possible, or just don't move pointer
+            return
+
     if node_id in tree.get("nodes", {}):
         tree["current"] = node_id
     else:

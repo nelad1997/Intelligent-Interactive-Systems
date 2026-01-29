@@ -1,4 +1,10 @@
+import os
 from enum import Enum
+
+# --- ENVIRONMENT FLAGS ---
+# Define strictly for Cloud/Local separation logic.
+# Local runs will naturally be False. Cloud runs must set "STREAMLIT_CLOUD" = "1".
+IS_CLOUD = bool(os.getenv("STREAMLIT_CLOUD"))
 
 class ActionType(Enum):
     """
