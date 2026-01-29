@@ -74,7 +74,7 @@ def call_llm(prompt: str, system_instruction: Optional[str] = None) -> str:
         HarmCategory.HARM_CATEGORY_DANGEROUS_CONTENT: HarmBlockThreshold.BLOCK_ONLY_HIGH,
     }
 
-    # model: Gemini 2.5 Pro (State-of-the-art reasoning)
+    # model: Gemini 1.5 Pro (State-of-the-art reasoning)
     if not system_instruction:
         system_instruction = None
         
