@@ -459,7 +459,7 @@ def main():
         st.session_state["editor_html"] = get_nearest_html(tree, st.session_state.tree["current"])
     mode_label, mode_class = get_ui_state(tree)
 
-    col_editor, col_lantern = st.columns([2, 2], gap="large")
+    col_editor, col_lantern = st.columns([2, 1], gap="large")
 
     # ==========================================
     # LEFT COLUMN: EDITOR
