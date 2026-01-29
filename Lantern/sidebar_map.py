@@ -364,19 +364,3 @@ def render_sidebar_map(tree, show_header: bool = True):
         with st.expander("🗺️ Expanded Thought Tree", expanded=True):
              st.graphviz_chart(graph, use_container_width=True)
 
-    # --- On-Screen Debug Console (Cloud Only) ---
-    from definitions import IS_CLOUD
-    if IS_CLOUD:
-        st.divider()
-        with st.expander("🛠️ Debug Console", expanded=False):
-            if st.button("Clear Logs", use_container_width=True):
-                st.session_state.debug_logs = []
-                st.rerun()
-            
-            logs = st.session_state.get("debug_logs", [])
-            if not logs:
-                st.info("No logs captured yet.")
-            else:
-                # Show last 20 logs in reverse (newest first)
-                log_text = "\n".join(logs[::-1][:20])
-                st.code(log_text, language="text")
