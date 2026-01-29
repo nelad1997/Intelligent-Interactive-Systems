@@ -52,30 +52,12 @@ def call_llm(prompt: str, system_instruction: Optional[str] = None) -> str:
         logger.error("CRITICAL: GEMINI_API_KEY is missing from environment variables!")
         raise RuntimeError("מפתח ה-API (GEMINI_API_KEY) חסר. אנא הגדר אותו ב-Secrets של Streamlit Cloud.")
 
-    # --- DIAGNOSIS LOGS ---
-    logger.error("GEMINI_API_KEY length: %s", len(api_key))
-
-    # Safe logging to verify request metadata
-    key_display = f"{api_key[:4]}...{api_key[-4:]}"
-    logger.info(f"🚀 INITIATING LLM CALL | Key: {key_display} | Prompt: {len(prompt)} chars")
-    if system_instruction:
-        logger.info(f"ℹ️ System Instruction Length: {len(system_instruction)} chars")
-
-    genai.configure(api_key=api_key)
-
-    safety_settings = {
-        HarmCategory.HARM_CATEGORY_HARASSMENT: HarmBlockThreshold.BLOCK_ONLY_HIGH,
-        HarmCategory.HARM_CATEGORY_HATE_SPEECH: HarmBlockThreshold.BLOCK_ONLY_HIGH,
-        HarmCategory.HARM_CATEGORY_SEXUALLY_EXPLICIT: HarmBlockThreshold.BLOCK_ONLY_HIGH,
-        HarmCategory.HARM_CATEGORY_DANGEROUS_CONTENT: HarmBlockThreshold.BLOCK_ONLY_HIGH,
-    }
-
-    # TEST MODEL: Switching to 1.5-flash to verify key permissions
+    # model: Gemini 2.5 Pro (State-of-the-art reasoning)
     if not system_instruction:
         system_instruction = None
         
     model = genai.GenerativeModel(
-        model_name="gemini-1.5-flash",
+        model_name="gemini-2.5-pro",
         safety_settings=safety_settings,
         system_instruction=system_instruction
     )
