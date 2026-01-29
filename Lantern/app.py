@@ -12,6 +12,16 @@ import html  # Added for safe text escaping
 import sys
 import PIL.Image
 import logging
+import datetime
+
+# --- On-Screen Debug Helper ---
+def add_debug_log(msg):
+    if "debug_logs" not in st.session_state:
+        st.session_state.debug_logs = []
+    timestamp = datetime.datetime.now().strftime("%H:%M:%S")
+    st.session_state.debug_logs.append(f"[{timestamp}] {msg}")
+    # Also log to terminal
+    logging.getLogger(__name__).info(msg)
 
 # Set up logging for app.py
 logging.basicConfig(level=logging.INFO)
@@ -435,6 +445,8 @@ def main():
         st.session_state.promo_block_selector_idx = 0
     if "promo_focus_mode" not in st.session_state:
         st.session_state.promo_focus_mode = "Whole Document"
+    if "debug_logs" not in st.session_state:
+        st.session_state.debug_logs = []
 
     # --- CLOUD GUARDRAIL: Session State Integrity ---
     from definitions import IS_CLOUD
@@ -442,10 +454,10 @@ def main():
         # In Streamlit Cloud, session state can be fragile. 
         # We ensure critical keys exist but avoid destructive resets if possible.
         if "tree" not in st.session_state:
-            logger.warning("☁️ CLOUD STATE RECOVERY: Tree mission. Initializing new.")
+            add_debug_log("☁️ CLOUD STATE RECOVERY: Tree mission. Initializing new.")
             st.session_state.tree = init_tree("")
         if "editor_html" not in st.session_state:
-            logger.warning("☁️ CLOUD STATE RECOVERY: editor_html missing. Resetting to root content.")
+            add_debug_log("☁️ CLOUD STATE RECOVERY: editor_html missing. Resetting to root content.")
             st.session_state.editor_html = get_nearest_html(st.session_state.tree, st.session_state.tree["current"])
         if "banned_ideas" not in st.session_state:
             st.session_state.banned_ideas = []
@@ -1245,7 +1257,7 @@ def main():
                         with c_sel:
                             if st.button("✔", key=f"s_{cid}", help="Select this idea as your main context and active path in the Thought Tree",
                                          use_container_width=True):
-                                logger.info(f"🖱️ SELECT: Node {cid} selected. Current text length: {len(st.session_state.get('editor_html', ''))}")
+                                add_debug_log(f"🖱️ SELECT: Node {cid} selected. Current text length: {len(st.session_state.get('editor_html', ''))}")
                                 pin_obj = {
                                     "id": cid, 
                                     "title": title, 
@@ -1268,14 +1280,14 @@ def main():
 
                                 # --- Navigation & State Sync ---
                                 if cid in st.session_state.tree.get("nodes", {}):
-                                    logger.info(f"🖱️ SELECT: Navigating to {cid}")
+                                    add_debug_log(f"🖱️ SELECT: Navigating to {cid}")
                                     navigate_to_node(st.session_state.tree, cid)
                                     # Use the nearest HTML (which fallback to current_node if already set above)
                                     final_html = get_nearest_html(st.session_state.tree, cid)
                                     st.session_state["editor_html"] = final_html
-                                    logger.info(f"🖱️ SELECT: Navigation complete. New draft length: {len(final_html) if final_html else 0}")
+                                    add_debug_log(f"🖱️ SELECT: Navigation complete. New draft length: {len(final_html) if final_html else 0}")
                                 else:
-                                    logger.error(f"🖱️ SELECT: Node {cid} NOT FOUND in tree!")
+                                    add_debug_log(f"🖱️ SELECT: Node {cid} NOT FOUND in tree!")
                                     st.error("This suggestion is no longer available.")
                                 
                                 if "editor_version" not in st.session_state:

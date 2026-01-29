@@ -77,8 +77,7 @@ def navigate_to_node(tree, node_id):
 
 def get_nearest_html(tree, node_id):
     """Recursively finds the nearest HTML metadata up the tree."""
-    import logging
-    logger = logging.getLogger(__name__)
+    from app import add_debug_log
     
     if node_id not in tree["nodes"]:
         return ""
@@ -86,15 +85,15 @@ def get_nearest_html(tree, node_id):
     node = tree["nodes"][node_id]
     html = node.get("metadata", {}).get("html")
     if html:
-        logger.info(f"🔍 NEAREST_HTML: Found content at {node_id} (len={len(html)})")
+        add_debug_log(f"🔍 NEAREST_HTML: Found content at {node_id} (len={len(html)})")
         return html
         
     parent_id = node.get("parent")
     if parent_id:
-        logger.info(f"🔍 NEAREST_HTML: Node {node_id} empty. Climbing to parent {parent_id}")
+        add_debug_log(f"🔍 NEAREST_HTML: Node {node_id} empty. Climbing to parent {parent_id}")
         return get_nearest_html(tree, parent_id)
         
-    logger.info(f"🔍 NEAREST_HTML: Reached root with no content.")
+    add_debug_log(f"🔍 NEAREST_HTML: Reached root with no content.")
     return ""
 
 def get_node_short_label(node):

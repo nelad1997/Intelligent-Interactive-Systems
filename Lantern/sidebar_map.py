@@ -166,9 +166,7 @@ def render_sidebar_map(tree, show_header: bool = True):
                      st.session_state["nav_selection_box"] = tree["current"]
                 return
 
-            if new_id != tree["current"]:
-                import logging
-                logger = logging.getLogger(__name__)
+                from app import add_debug_log
                 
                 # 1. Capture Current Draft before Leaving
                 old_id = tree["current"]
@@ -176,15 +174,15 @@ def render_sidebar_map(tree, show_header: bool = True):
                 if current_draft:
                     # Sync to the node we ARE CURRENTLY ON before moving
                     tree["nodes"][old_id].setdefault("metadata", {})["html"] = current_draft
-                    logger.info(f"🔄 NAV: Saved {len(current_draft)} chars to old node {old_id}")
+                    add_debug_log(f"🔄 NAV: Saved {len(current_draft)} chars to old node {old_id}")
                 
                 # 2. Perform Navigation
-                logger.info(f"🔄 NAV: Switching from {old_id} to {new_id}")
+                add_debug_log(f"🔄 NAV: Switching from {old_id} to {new_id}")
                 navigate_to_node(tree, new_id)
                 
                 # 3. Resolve Target Content (with robust fallback)
                 target_html = get_nearest_html(tree, new_id)
-                logger.info(f"🔄 NAV: Resolved target HTML (success={bool(target_html)})")
+                add_debug_log(f"🔄 NAV: Resolved target HTML (success={bool(target_html)})") 
                 
                 # If target has NO saved state (like a new idea), 
                 # we keep the current draft if they are related, but get_nearest_html 
@@ -194,9 +192,7 @@ def render_sidebar_map(tree, show_header: bool = True):
                 # 4. Force Quill Re-mount
                 if "editor_version" not in st.session_state:
                     st.session_state.editor_version = 0
-                st.session_state.editor_version += 1
-                
-                logger.info(f"🔄 NAV: Complete. New node={new_id}, EditorVersion={st.session_state.editor_version}")
+                add_debug_log(f"🔄 NAV: Complete. New node={new_id}, EditorVersion={st.session_state.editor_version}")
                 
                 # Auto-pin (MUST happen before rerun)
                 target_node = tree["nodes"][new_id]
@@ -213,7 +209,7 @@ def render_sidebar_map(tree, show_header: bool = True):
                     if "pinned_items" in tree:
                         if not any(isinstance(i, dict) and i.get("id") == new_id for i in tree["pinned_items"]):
                              tree["pinned_items"].append(pin_obj)
-                             logger.info(f"📌 NAV: Auto-pinned node {new_id}")
+                             add_debug_log(f"📌 NAV: Auto-pinned node {new_id}")
 
                 st.rerun()
 
@@ -365,3 +361,18 @@ def render_sidebar_map(tree, show_header: bool = True):
     if st.session_state.get("show_full_tree") and graph:
         with st.expander("🗺️ Expanded Thought Tree", expanded=True):
              st.graphviz_chart(graph, use_container_width=True)
+
+    # --- On-Screen Debug Console ---
+    st.divider()
+    with st.expander("🛠️ Debug Console", expanded=False):
+        if st.button("Clear Logs", use_container_width=True):
+            st.session_state.debug_logs = []
+            st.rerun()
+        
+        logs = st.session_state.get("debug_logs", [])
+        if not logs:
+            st.info("No logs captured yet.")
+        else:
+            # Show last 20 logs in reverse (newest first)
+            log_text = "\n".join(logs[::-1][:20])
+            st.code(log_text, language="text")
