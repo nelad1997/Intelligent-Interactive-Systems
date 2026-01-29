@@ -8,10 +8,10 @@
 - **Dedicated Help Tooltips**: Added granular guidance for each tool to help users manage their AI focus range effectively.
 
 ### 🛠️ Bug Fixes & Reliability
-- **Dramatically Improved 429 Mitigation**: Upgraded the LLM client with randomized exponential backoff (Jitter) and a stricter cooldown between calls.
-- **Paragraph Selection Persistence**: Resolved the race condition that caused the paragraph list to disappear during AI thinking states.
-- **Stable Structural Sync**: Centralized the document segmentation logic to provide a consistent substrate for all AI actions.
-- **Diagnostic Usage Logging**: Internal logs now track prompt length to help optimize and prevent TPM/RPM limit violations.
+- **Navigation Data Persistence**: Fixed a major bug where switching nodes in the Thought Tree would occasionally clear the editor. The draft is now robustly preserved or inherited during all navigation actions.
+- **Pro-Level Quota Mitigation**: Standardized Gemini 2.5 Pro with a 30s RPM safety buffer and modular system instructions.
+- **Paragraph Selection Persistence**: Resolved the race condition that caused the paragraph list to disappear.
+- **Diagnostic Usage Logging**: Internal tracking of prompt length for better quota management.
 
 ### 🧠 Performance & UX
 - **Modern Tabbed Layout**: Reduced vertical scrolling for better usable workspace.

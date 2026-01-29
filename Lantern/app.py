@@ -1185,10 +1185,12 @@ def main():
     # ==========================================
     if st.session_state.pending_action and st.session_state.is_thinking:
         if not st.session_state.llm_in_flight:
+            # CRITICAL: Clear pending_action IMMEDIATELY to prevent duplicate calls on Streamlit reruns
+            payload = st.session_state.pending_action
+            st.session_state.pending_action = None
             st.session_state.llm_in_flight = True
+            
             try:
-                payload = st.session_state.pending_action
-                
                 # --- LATE-BINDING FOCUS CALCULATION ---
                 # We calculate the focus text HERE, after all widgets have had a chance to update.
                 current_html = st.session_state.get("editor_html", "")
@@ -1273,12 +1275,9 @@ def main():
                 st.error(f"❌ Gemini Error: {e}")
             finally:
                 # --- Automatic Structural Refresh Disabled (Fix for Rate Limits) ---
-                # We no longer trigger SEGMENT automatically after every action.
-                # The user can manually refresh or we can rely on heuristics.
                 pass
 
                 st.session_state.llm_in_flight = False
-                st.session_state.pending_action = None
                 st.session_state.is_thinking = False
                 st.rerun()
 

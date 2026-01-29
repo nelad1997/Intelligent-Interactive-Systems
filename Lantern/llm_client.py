@@ -37,20 +37,22 @@ class RateLimiter:
                 time.sleep(wait_time)
             self.last_call_time = time.time()
 
-_limiter = RateLimiter(cooldown_seconds=10.0)
+# Stricter cooldown for Pro models to avoid RPM limits
+_limiter = RateLimiter(cooldown_seconds=30.0)
 
 
 
-def call_llm(prompt: str) -> str:
+def call_llm(prompt: str, system_instruction: Optional[str] = None) -> str:
     """
     Robust call to Gemini API with retries, rate limiting, and error handling.
+    Uses gemini-2.5-pro for superior reasoning and system_instruction for token efficiency.
     """
     api_key = os.getenv("GEMINI_API_KEY")
     if not api_key:
         logger.error("GEMINI_API_KEY is not set in environment variables")
         raise RuntimeError("GEMINI_API_KEY is not set")
 
-    # Safe logging to verify the key being used
+    # Safe logging to verify request metadata
     key_display = f"{api_key[:4]}...{api_key[-4:]}"
     logger.info(f"🔑 Using API Key: {key_display} | Prompt Length: {len(prompt)} chars")
 
@@ -63,22 +65,23 @@ def call_llm(prompt: str) -> str:
         HarmCategory.HARM_CATEGORY_DANGEROUS_CONTENT: HarmBlockThreshold.BLOCK_ONLY_HIGH,
     }
 
-    # model: Gemini 2.0 Flash (Stable and fast)
+    # model: Gemini 2.5 Pro (State-of-the-art reasoning)
     model = genai.GenerativeModel(
-        model_name="gemini-2.0-flash",
+        model_name="gemini-2.5-pro",
         safety_settings=safety_settings,
+        system_instruction=system_instruction
     )
 
-    # Enforce Rate Limit
+    # Enforce Rate Limit (Stricter for Pro model)
     _limiter.wait_if_needed()
 
     max_retries = 4
-    retry_delay = 3 # seconds
+    retry_delay = 10 # Pro models usually have lower RPM, so we wait longer
     import random
 
     for attempt in range(max_retries):
         try:
-            logger.info(f"🚀 Calling Gemini API (Attempt {attempt + 1})...")
+            logger.info(f"🚀 Calling Gemini 2.5 Pro (Attempt {attempt + 1})...")
             response = model.generate_content(prompt)
 
             if not response or not hasattr(response, 'text') or not response.text:
@@ -98,14 +101,14 @@ def call_llm(prompt: str) -> str:
             # Handle Rate Limit (429) or Resource Exhausted
             if "429" in err_msg or "ResourceExhausted" in err_msg or "Quota" in err_msg:
                 if attempt < max_retries - 1:
-                    # Randomized exponential backoff
-                    wait_time = retry_delay * (2 ** attempt) + random.uniform(0, 1)
+                    # Randomized exponential backoff - more aggressive for Pro
+                    wait_time = retry_delay * (2.5 ** attempt) + random.uniform(0, 3)
                     logger.warning(f"⚠️ Rate limit hit (429). Waiting {wait_time:.1f}s before retry {attempt + 2}/{max_retries}...")
                     time.sleep(wait_time)
                     continue
                 else:
                     logger.error("Rate limit exceeded consistently after multiple retries.")
-                    raise RuntimeError("מכסת הפעולה (Quota/TPM) הגיעה למקסימום. אנא המתן כ-30 שניות ונסה שוב.")
+                    raise RuntimeError("מכסת הפעולה הגיעה למקסימום. דגם ה-Pro דורש המתנה ארוכה יותר בין פעולות. אנא נסה שוב בעוד דקה.")
             
             if "400" in err_msg and "model" in err_msg.lower():
                  logger.error(f"Invalid model name or configuration: {e}")
@@ -118,5 +121,10 @@ def call_llm(prompt: str) -> str:
 def generate_content(action: ActionType, focus: str, system_instructions: str = "") -> str:
     """Wrapper for call_llm using the old signature if needed."""
     from prompt_builder import build_prompt
-    prompt = build_prompt(action, focus)
-    return call_llm(prompt)
+    # Use provided instructions or load defaults modularly
+    if not system_instructions:
+        from controller import load_academic_principles
+        system_instructions = load_academic_principles(action)
+        
+    prompt = build_prompt(action, focus, instructions="")
+    return call_llm(prompt, system_instruction=system_instructions)

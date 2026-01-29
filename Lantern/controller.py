@@ -331,7 +331,6 @@ def handle_event(tree: Dict, event_type: UserEventType, event_context: Optional[
     event_context = event_context or {}
     action = event_context.get("action")
     system_rules = load_academic_principles(action)
-    event_context = event_context or {}
 
     if event_type == UserEventType.ACTION:
         return _handle_action(tree, event_context, system_rules)
@@ -420,7 +419,9 @@ def _handle_action(tree: Dict, event_context: Dict[str, Any], system_rules: str)
     # שליחה ל-LLM
     constraints_str = "\n".join(constraints) if constraints else ""
     prompt = build_prompt(action, final_user_text, instructions=constraints_str)
-    llm_output = call_llm(prompt)
+    
+    # We leverage the 'system_instruction' parameter to optimize prompt size and stay within quota
+    llm_output = call_llm(prompt, system_instruction=system_rules)
 
     if action == ActionType.DIVERGE:
         options = parse_llm_options(llm_output)

@@ -156,12 +156,23 @@ def render_sidebar_map(tree, show_header: bool = True):
                 
             new_id = st.session_state["nav_selection_box"]
             if new_id != st.session_state.tree["current"]:
-                if "editor_html" in st.session_state:
-                    st.session_state.tree["nodes"][st.session_state.tree["current"]].setdefault("metadata", {})["html"] = st.session_state["editor_html"]
-                navigate_to_node(st.session_state.tree, new_id)
-                st.session_state["editor_html"] = get_nearest_html(st.session_state.tree, new_id)
+                # 1. Capture Current Draft before Leaving
+                current_draft = st.session_state.get("editor_html", "")
+                if current_draft:
+                    st.session_state.tree["nodes"][st.session_state.tree["current"]].setdefault("metadata", {})["html"] = current_draft
                 
-                # CRITICAL: Increment version to force Quill re-mount
+                # 2. Perform Navigation
+                navigate_to_node(st.session_state.tree, new_id)
+                
+                # 3. Resolve Target Content (with robust fallback)
+                target_html = get_nearest_html(st.session_state.tree, new_id)
+                # If target has NO saved state (like a new idea), PRESERVE the current draft instead of clearing
+                if not target_html:
+                    target_html = current_draft
+                
+                st.session_state["editor_html"] = target_html
+                
+                # 4. Force Quill Re-mount
                 if "editor_version" not in st.session_state:
                     st.session_state.editor_version = 0
                 st.session_state.editor_version += 1

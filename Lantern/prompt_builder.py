@@ -38,7 +38,7 @@ def build_prompt(action: ActionType, focus: str, instructions: str = "") -> str:
             "- Use 'Title:' as the key even if the content is in another language.\n"
             "- Return ONLY the perspectives in the specified format.\n\n"
 
-            f"Input & Principles:\n{focus}\n{instructions}"
+            f"Input:\n{focus}"
         )
 
     # -------------------------------------------------
@@ -99,7 +99,7 @@ def build_prompt(action: ActionType, focus: str, instructions: str = "") -> str:
             "- Ensure each block identifies a DIFFERENT type of issue.\n"
             "- Respond in the same language as the input text.\n"
             "- STRICTLY NO introductory text. Start directly with 'Title:' or 'NO_CRITIQUE_NEEDED'.\n\n"
-            f"Input & Principles:\n{focus}\n\nSYSTEM CONSTRAINTS:\n{instructions}"
+            f"Input text:\n{focus}"
         )
 
     # -------------------------------------------------
