@@ -351,32 +351,38 @@ def get_structural_segments(current_html):
     # Clean styling and irrelevant tags
     no_css = re.sub(r"<style.*?>.*?</style>", "", current_html, flags=re.DOTALL | re.IGNORECASE)
     
-    # Heuristic: Find all block-level contents with a lookahead to ensure we don't grab nested tags as separate root blocks immediately 
-    # but the simple regex works well for Quill's flat structure.
-    blocks = re.findall(r"<(p|h[1-6]|div|li|blockquote|br)[^>]*>(.*?)</\1>", no_css, re.DOTALL | re.IGNORECASE)
+    # 1. Pre-process common separators to preserve line breaks before stripping tags
+    processed_html = no_css.replace("<br>", "\n").replace("<br/>", "\n").replace("<br />", "\n")
+    processed_html = re.sub(r"</(p|div|h[1-6]|li|blockquote)>", r"</\1>\n\n", processed_html)
+
+    # findall for block-level contents
+    blocks = re.findall(r"<(p|h[1-6]|div|li|blockquote)[^>]*>(.*?)</\1>", processed_html, re.DOTALL | re.IGNORECASE)
     
     segments = []
     if blocks:
         for tag, content in blocks:
             tag_name = tag.lower()
-            if tag_name.startswith("h"):
-                continue
+            # We NO LONGER skip headers, as they are often titles
             
             clean_text = re.sub("<[^<]+?>", "", content).replace("&nbsp;", " ").strip()
             if not clean_text:
                 continue
                 
-            sub_segments = [s.strip() for s in clean_text.split("\n\n") if s.strip()]
-            for ss in sub_segments:
-                if len(ss) > 5:
+            # Split on double newlines or single newlines if it looks like a title/list
+            raw_splits = [s.strip() for s in re.split(r"\n+", clean_text) if s.strip()]
+            
+            for i, ss in enumerate(raw_splits):
+                # Heuristic: If it's the first line and short, it's probably a title/header.
+                # Otherwise, we might want to group consecutive short lines, but for now, 
+                # let's just ensure we capture them.
+                if len(ss) >= 3: # Allow very short titles
                     segments.append(ss)
     else:
-        plain_text = re.sub("<[^<]+?>", "", no_css).replace("&nbsp;", " ").strip()
-        raw_parts = [p.strip() for p in plain_text.split("\n\n") if p.strip()]
-        if not raw_parts:
-             raw_parts = [p.strip() for p in plain_text.split("\n") if p.strip()]
+        # Fallback for plain text or unstructured HTML
+        plain_text = re.sub("<[^<]+?>", "", processed_html).replace("&nbsp;", " ").strip()
+        raw_parts = [p.strip() for p in re.split(r"\n+", plain_text) if p.strip()]
         for part in raw_parts:
-            if len(part) > 20: 
+            if len(part) >= 3: 
                 segments.append(part)
             
     return segments
@@ -593,7 +599,13 @@ def main():
                             # Clean label for radio
                             p_clean = re.sub(r"^(?:\[P\s*\d+\]|Block\s*\d+:?|\d+[\.)]|[*•\-])\s*", "", p, flags=re.IGNORECASE).strip()
                             preview = (p_clean[:60] + "...") if len(p_clean) > 60 else p_clean
-                            options.append(f"[{i+1}] {preview}")
+                            
+                            # NEW: Identification of Title vs Paragraph
+                            label_idx = f"{i+1}"
+                            if i == 0 and len(p_clean) < 120:
+                                label_idx = "Title"
+                            
+                            options.append(f"[{label_idx}] {preview}")
                         
                         saved_idx = st.session_state.get("promo_block_selector_idx", 0)
                         # Bounds check
@@ -756,13 +768,23 @@ def main():
                         plain_text = re.sub("<[^<]+?>", "", text_proc).strip()
                         current_node["metadata"]["draft_plain"] = plain_text
                         # Update Root Label if this is the root node
-                        if current_node.get("type") == "root" and plain_text:
-                            first_line = plain_text.split("\n")[0].strip()
-                            if first_line and len(first_line) > 5:
-                                # Clean first line from manual markers if any
-                                title_topic = re.sub(r"^(?:\[P\s*\d+\]|Block\s*\d+:?|\d+[\.)]|[*•\-])\s*", "", first_line, flags=re.IGNORECASE).strip()
-                                if len(title_topic) > 60: title_topic = title_topic[:57] + "..."
-                                current_node["metadata"]["label"] = f"[{title_topic}]"
+                        if current_node.get("type") == "root":
+                            # Use the first segment from our improved logic as the title
+                            improved_segments = get_structural_segments(clean_html)
+                            if improved_segments:
+                                first_seg = improved_segments[0]
+                                # If the first segment is "short enough" to be a title
+                                if len(first_seg) < 200:
+                                    title_topic = re.sub(r"^(?:\[P\s*\d+\]|Block\s*\d+:?|\d+[\.)]|[*•\-])\s*", "", first_seg, flags=re.IGNORECASE).strip()
+                                    if len(title_topic) > 60: title_topic = title_topic[:57] + "..."
+                                    current_node["metadata"]["label"] = f"[{title_topic}]"
+                                else:
+                                    # If first segment is long, it's a paragraph, take a snippet
+                                    current_node["metadata"]["label"] = f"[{first_seg[:30]}...]"
+                                
+                                # Also update structural segments if they were empty or significantly changed
+                                # (But don't force rerun here as st_quill might be in mid-update)
+                                st.session_state.structural_segments = improved_segments
                         
                         st.session_state.last_edit_time = time.time()
                         
@@ -954,8 +976,17 @@ def main():
                         if is_new_file or is_empty_editor:
                             doc_text = extract_text_from_file(uploaded_doc)
                             if doc_text is not None:
-                                escaped_text = html.escape(doc_text)
-                                html_val = f"<p>{escaped_text.replace(chr(10), '<br>')}</p>"
+                                lines = [l.strip() for l in doc_text.split('\n') if l.strip()]
+                                html_blocks = []
+                                for i, line in enumerate(lines):
+                                    escaped = html.escape(line)
+                                    if i == 0 and len(line) < 100:
+                                        # Likely a title
+                                        html_blocks.append(f"<h1>{escaped}</h1>")
+                                    else:
+                                        html_blocks.append(f"<p>{escaped}</p>")
+                                
+                                html_val = "\n".join(html_blocks)
                                 st.session_state["editor_html"] = html_val
                                 st.session_state.structural_segments = get_structural_segments(html_val) # RE-SEGMENT on import
                                 current_node.setdefault("metadata", {})["html"] = html_val
