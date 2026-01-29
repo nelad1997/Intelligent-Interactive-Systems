@@ -10,13 +10,43 @@ from llm_client import call_llm
 
 # --- פונקציות עזר לטעינה וניהול ---
 
-def load_academic_principles() -> str:
-    """טוען את מסמך העקרונות האקדמיים מהקובץ החיצוני."""
-    filename = "academic_writing_principles.md"
-    if os.path.exists(filename):
-        with open(filename, "r", encoding="utf-8") as f:
-            return f.read().strip()
-    return ""
+def load_academic_principles(action: Optional[ActionType] = None) -> str:
+    """טוען את מסמך העקרונות האקדמיים ומסנן לפי הפעולה הנדרשת."""
+    filename = "academic_writing_principles"
+    if not os.path.exists(filename):
+        filename = "academic_writing_principles.md"
+        
+    if not os.path.exists(filename):
+        return ""
+        
+    with open(filename, "r", encoding="utf-8") as f:
+        full_text = f.read().strip()
+        
+    if not action:
+        return full_text
+        
+    # Mapping modules to actions to save tokens
+    # Action -> Module Keywords
+    mapping = {
+        ActionType.DIVERGE: ["Module 4", "Module 5", "Synthesis", "Partner Behaviors", "VII"],
+        ActionType.CRITIQUE: ["Module 1", "Module 5", "Devil's Advocate", "Ethics", "VII"],
+        ActionType.REFINE: ["Module 2", "Module 3", "Old-to-New", "Nominalization", "VI"],
+        ActionType.SEGMENT: ["Module 2.1", "Module 2.2", "Section-Level", "Architecture"],
+    }
+    
+    relevant_keywords = mapping.get(action, [])
+    if not relevant_keywords:
+        return full_text
+        
+    # Split by headers (##) and filter
+    sections = re.split(r"(?=^##)", full_text, flags=re.MULTILINE)
+    filtered = [sections[0]] # Keep Intro/Phase 0 usually
+    
+    for section in sections[1:]:
+        if any(kw.lower() in section.lower() for kw in relevant_keywords):
+            filtered.append(section)
+            
+    return "\n\n".join(filtered)
 
 
 def generate_diff_html_legacy(old_text: str, new_text: str) -> str:
@@ -298,7 +328,9 @@ def parse_llm_options(llm_output: str) -> List[str]:
 # --- ניהול אירועים ראשי ---
 
 def handle_event(tree: Dict, event_type: UserEventType, event_context: Optional[Dict[str, Any]] = None) -> Dict:
-    system_rules = load_academic_principles()
+    event_context = event_context or {}
+    action = event_context.get("action")
+    system_rules = load_academic_principles(action)
     event_context = event_context or {}
 
     if event_type == UserEventType.ACTION:
@@ -327,8 +359,11 @@ def _handle_action(tree: Dict, event_context: Dict[str, Any], system_rules: str)
         constraints.append("### ACADEMIC WRITING PRINCIPLES ###\n" + system_rules)
 
     if pinned_context:
-        pinned_texts = [item["text"] if isinstance(item, dict) else item for item in pinned_context]
-        constraints.append(f"Pinned context:\n- " + "\n- ".join(pinned_texts))
+        # Only send pinned items for DIVERGE to save tokens. 
+        # For Refine/Critique, the local draft is usually sufficient.
+        if action == ActionType.DIVERGE:
+            pinned_texts = [item["text"] if isinstance(item, dict) else item for item in pinned_context]
+            constraints.append(f"Pinned context (Reference only):\n- " + "\n- ".join(pinned_texts))
 
     if action == ActionType.DIVERGE:
         current_node = tree["nodes"][anchor_id]
@@ -338,7 +373,9 @@ def _handle_action(tree: Dict, event_context: Dict[str, Any], system_rules: str)
             constraints.append(f"ALREADY EXPLORED (Do not repeat):\n- " + "\n- ".join(existing_summaries))
 
     knowledge_base = event_context.get("knowledge_base", {})
-    if knowledge_base:
+    if knowledge_base and action == ActionType.DIVERGE:
+        # Only send KB for DIVERGE (Expanding new ideas). 
+        # Refine/Critique usually don't need the whole KB.
         kb_text = "\n\n".join([f"--- FILE: {name} ---\n{content}" for name, content in knowledge_base.items()])
         constraints.append(f"### REFERENCE KNOWLEDGE BASE ###\n{kb_text}")
 

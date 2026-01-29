@@ -37,7 +37,7 @@ class RateLimiter:
                 time.sleep(wait_time)
             self.last_call_time = time.time()
 
-_limiter = RateLimiter(cooldown_seconds=8.0)
+_limiter = RateLimiter(cooldown_seconds=10.0)
 
 
 
@@ -52,7 +52,7 @@ def call_llm(prompt: str) -> str:
 
     # Safe logging to verify the key being used
     key_display = f"{api_key[:4]}...{api_key[-4:]}"
-    logger.info(f"🔑 Using API Key: {key_display}")
+    logger.info(f"🔑 Using API Key: {key_display} | Prompt Length: {len(prompt)} chars")
 
     genai.configure(api_key=api_key)
 
@@ -72,8 +72,9 @@ def call_llm(prompt: str) -> str:
     # Enforce Rate Limit
     _limiter.wait_if_needed()
 
-    max_retries = 3
-    retry_delay = 2 # seconds
+    max_retries = 4
+    retry_delay = 3 # seconds
+    import random
 
     for attempt in range(max_retries):
         try:
@@ -87,22 +88,24 @@ def call_llm(prompt: str) -> str:
                     if finish_reason == 3: # SAFETY
                          raise RuntimeError("The request was blocked by safety filters. Please try rephrasing.")
                 
-                logger.warning(f"Gemini returned an empty or blocked response. Reason: {getattr(response, 'candidates', [None])[0]}")
+                logger.warning(f"Gemini returned an empty or blocked response.")
                 raise RuntimeError("Empty response from Gemini")
 
             return response.text.strip()
 
         except Exception as e:
             err_msg = str(e)
+            # Handle Rate Limit (429) or Resource Exhausted
             if "429" in err_msg or "ResourceExhausted" in err_msg or "Quota" in err_msg:
                 if attempt < max_retries - 1:
-                    logger.warning(f"Rate limit hit. Retrying in {retry_delay}s... (Attempt {attempt + 1})")
-                    time.sleep(retry_delay)
-                    retry_delay *= 4 # Aggressive backoff for quota
+                    # Randomized exponential backoff
+                    wait_time = retry_delay * (2 ** attempt) + random.uniform(0, 1)
+                    logger.warning(f"⚠️ Rate limit hit (429). Waiting {wait_time:.1f}s before retry {attempt + 2}/{max_retries}...")
+                    time.sleep(wait_time)
                     continue
                 else:
-                    logger.error("Rate limit exceeded consistently.")
-                    raise RuntimeError("מכסת הקריאות (Quota/TPM) הסתיימה לבינתיים. אנא המתן כדקה ונסה שוב.")
+                    logger.error("Rate limit exceeded consistently after multiple retries.")
+                    raise RuntimeError("מכסת הפעולה (Quota/TPM) הגיעה למקסימום. אנא המתן כ-30 שניות ונסה שוב.")
             
             if "400" in err_msg and "model" in err_msg.lower():
                  logger.error(f"Invalid model name or configuration: {e}")
