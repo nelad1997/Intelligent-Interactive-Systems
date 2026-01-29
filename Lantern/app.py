@@ -459,7 +459,7 @@ def main():
         st.session_state["editor_html"] = get_nearest_html(tree, st.session_state.tree["current"])
     mode_label, mode_class = get_ui_state(tree)
 
-    col_editor, col_lantern = st.columns([2, 1], gap="large")
+    col_editor, col_lantern = st.columns([2, 2], gap="large")
 
     # ==========================================
     # LEFT COLUMN: EDITOR
@@ -1126,7 +1126,7 @@ def main():
                         c_sel, c_pin, c_del = st.columns([1, 1, 1])
                         
                         with c_sel:
-                             if st.button("✔ Acknowledge", key=f"cs_sel_{i}", help="Acknowledge this critique and strengthen your argument (Increments counter)", use_container_width=True):
+                             if st.button("✔", key=f"cs_sel_{i}", help="Acknowledge this critique to strengthen your argument (Increments Thinking Depth counter)", use_container_width=True):
                                 # Add to persistent history (Increments Strengthened counter)
                                 unique_key = text[:50]
                                 if "bulletproof_history" not in st.session_state:
@@ -1238,7 +1238,7 @@ def main():
                         st.divider()
                         c_sel, c_pin, c_pru = st.columns([1, 1, 1])
                         with c_sel:
-                            if st.button("✔ Select", key=f"s_{cid}", help=f"Select this path based on Academic Principle: {module_tag}",
+                            if st.button("✔", key=f"s_{cid}", help="Select this idea as your main context and active path in the Thought Tree",
                                          use_container_width=True):
                                 pin_obj = {
                                     "id": cid, 
