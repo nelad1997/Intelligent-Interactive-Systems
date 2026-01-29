@@ -711,13 +711,10 @@ def main():
                 
                 # Use columns for right-alignment of the button
                 c_btn_1, c_btn_2 = st.columns([0.94, 0.06])
-                if c_btn_2.button("🗑", help="Reset Thought Tree: Keeps current text but clears all AI context and resets the tree structure."):
-                    # SMART RESET: Preserve editor content but restart the tree
-                    current_text = st.session_state.get("editor_html", "")
-                    # Extract a snippet for the new root summary
-                    plain_snippet = re.sub("<[^<]+?>", "", current_text).strip()[:40]
-                    st.session_state.tree = init_tree(plain_snippet + ("..." if len(plain_snippet) > 30 else ""))
-                    # Note: We do NOT wipe editor_html here anymore
+                if c_btn_2.button("🗑", help="Reset All: Clears the editor and resets the entire Thought Tree and AI context."):
+                    # FULL RESET: Wipe everything
+                    st.session_state["editor_html"] = ""
+                    st.session_state.tree = init_tree("")
                     
                     # Wiping session state context
                     st.session_state.banned_ideas = []
@@ -728,6 +725,14 @@ def main():
                     st.session_state.pending_refine_edits = []
                     st.session_state.structural_segments = []
                     st.session_state.logical_paragraphs = []
+                    st.session_state.focused_text = ""
+                    
+                    # Force Quill Re-mount to show empty editor
+                    if "editor_version" not in st.session_state:
+                        st.session_state.editor_version = 0
+                    st.session_state.editor_version += 1
+                    
+                    st.rerun()
                     st.session_state.focused_text = ""
                     st.session_state.promo_block_selector_idx = 0
                     if "promo_block_radio_selector" in st.session_state:
