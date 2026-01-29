@@ -54,6 +54,12 @@ except Exception:
 
 st.set_page_config(page_title="Lantern", page_icon=page_logo, layout="wide")
 
+# Helper to load logo for markdown display
+logo_base64 = None
+if os.path.exists(logo_full_path):
+    with open(logo_full_path, "rb") as f:
+        logo_base64 = base64.b64encode(f.read()).decode()
+
 
 # -------------------------------------------------
 # File Processing Helpers

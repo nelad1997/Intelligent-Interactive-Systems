@@ -6,3 +6,4 @@ streamlit-quill
 PyMuPDF
 python-docx
 Pillow
+reportlab
