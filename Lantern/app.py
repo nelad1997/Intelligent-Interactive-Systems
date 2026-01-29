@@ -922,6 +922,15 @@ def main():
                                 st.session_state["last_imported_doc"] = uploaded_doc.name
                                 st.rerun()
 
+                        # --- NEW: Safe Clear/Reset Button ---
+                        st.divider()
+                        if st.button("🗑 Clear Editor", use_container_width=True, help="Safely remove all text from the editor."):
+                             st.session_state["editor_html"] = ""
+                             st.session_state.structural_segments = []
+                             current_node.setdefault("metadata", {})["html"] = ""
+                             st.session_state.editor_version += 1
+                             st.rerun()
+
         with c_io_2:
             export_tooltip = "Export your draft to DOCX or PDF format."
             with st.popover("📤 Export", use_container_width=True, help=export_tooltip):
@@ -1266,7 +1275,6 @@ def main():
                     if response.get("mode") == "refine_suggestions":
                         st.session_state.pending_refine_edits = response.get("items", [])
                     else:
-                        import os
                         st.session_state.pending_refine_edits = [{
                             "id": f"full_refine_{os.urandom(2).hex()}",
                             "original": t_text,
