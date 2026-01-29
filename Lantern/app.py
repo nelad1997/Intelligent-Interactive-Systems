@@ -47,6 +47,9 @@ load_dotenv()
 # -------------------------------------------------
 # Load logo safely for page config
 logo_full_path = os.path.join(current_dir, "logo.jpg")
+if not os.path.exists(logo_full_path):
+    logo_full_path = os.path.join(os.getcwd(), "logo.jpg")
+
 try:
     page_logo = PIL.Image.open(logo_full_path)
 except Exception:
@@ -406,8 +409,8 @@ def main():
     if "llm_in_flight" not in st.session_state:
         st.session_state.llm_in_flight = False
     if "tree" not in st.session_state:
-        if not load_autosave():
-            st.session_state.tree = init_tree("")
+        # DISABLED: Autosave loading is risky if not actively saving
+        st.session_state.tree = init_tree("")
     
     # DEFENSIVE: Check tree again before accessing nested properties
     tree = st.session_state.get("tree")
@@ -435,17 +438,16 @@ def main():
     # --- CLOUD GUARDRAIL: Session State Integrity ---
     from definitions import IS_CLOUD
     if IS_CLOUD:
-        # In Streamlit Cloud, session state can be fragile.
-        # We ensure critical keys exist to prevent KeyErrors later.
-        required_keys = ["tree", "editor_html", "banned_ideas", "pending_refine_edits"]
-        for key in required_keys:
-            if key not in st.session_state:
-                import logging
-                logging.getLogger(__name__).warning(f"☁️ CLOUD STATE RECOVERY: Restoring missing key '{key}'")
-                if key == "tree": st.session_state.tree = init_tree("")
-                elif key == "editor_html": st.session_state.editor_html = ""
-                elif key == "banned_ideas": st.session_state.banned_ideas = []
-                elif key == "pending_refine_edits": st.session_state.pending_refine_edits = []
+        # In Streamlit Cloud, session state can be fragile. 
+        # We ensure critical keys exist but avoid destructive resets if possible.
+        if "tree" not in st.session_state:
+            st.session_state.tree = init_tree("")
+        if "editor_html" not in st.session_state:
+            st.session_state.editor_html = ""
+        if "banned_ideas" not in st.session_state:
+            st.session_state.banned_ideas = []
+        if "pending_refine_edits" not in st.session_state:
+            st.session_state.pending_refine_edits = []
 
     
     # --- GLOBAL STRUCTURAL SYNC ---
@@ -706,10 +708,13 @@ def main():
                 
                 # Use columns for right-alignment of the button
                 c_btn_1, c_btn_2 = st.columns([0.94, 0.06])
-                if c_btn_2.button("🗑", help="Full System Reset: Start from scratch (Wipes editor, tree, and all AI context).", key="clear_editor_integrated"):
-                    # Full Workspace Wipe Logic
-                    st.session_state.tree = init_tree("") # Start with empty root
-                    st.session_state["editor_html"] = ""  # WIPE TEXT
+                if c_btn_2.button("🗑", help="Reset Thought Tree: Keeps current text but clears all AI context and resets the tree structure."):
+                    # SMART RESET: Preserve editor content but restart the tree
+                    current_text = st.session_state.get("editor_html", "")
+                    # Extract a snippet for the new root summary
+                    plain_snippet = re.sub("<[^<]+?>", "", current_text).strip()[:40]
+                    st.session_state.tree = init_tree(plain_snippet + ("..." if len(plain_snippet) > 30 else ""))
+                    # Note: We do NOT wipe editor_html here anymore
                     
                     # Wiping session state context
                     st.session_state.banned_ideas = []
@@ -772,18 +777,18 @@ def main():
                         text_proc = re.sub(r"</(p|div|h[1-6]|li|blockquote)>", "\n", text_proc).replace("<br>", "\n")
                         plain_text = re.sub("<[^<]+?>", "", text_proc).strip()
                         current_node["metadata"]["draft_plain"] = plain_text
+                        # Update paragraphs from current clean_html
+                        doc_title, paragraphs = get_document_structure(clean_html)
+                        st.session_state.structural_segments = paragraphs # Sync for ALL node types
+                        
                         # Update Root Label if this is the root node
                         if current_node.get("type") == "root":
-                            doc_title, paragraphs = get_document_structure(clean_html)
                             if doc_title:
                                 title_topic = re.sub(r"^(?:\[P\s*\d+\]|Block\s*\d+:?|\d+[\.)]|[*•\-])\s*", "", doc_title, flags=re.IGNORECASE).strip()
                                 if len(title_topic) > 60: title_topic = title_topic[:57] + "..."
                                 current_node["metadata"]["label"] = f"[{title_topic}]"
                             elif paragraphs:
                                 current_node["metadata"]["label"] = f"[{paragraphs[0][:25]}...]"
-                                
-                            # Sync paragraphs to state (excluding title)
-                            st.session_state.structural_segments = paragraphs
                         
                         st.session_state.last_edit_time = time.time()
                         
