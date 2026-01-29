@@ -154,18 +154,29 @@ def render_sidebar_map(tree, show_header: bool = True):
             if st.session_state.get("is_thinking"):
                 return
                 
-            new_id = st.session_state["nav_selection_box"]
-            if new_id != st.session_state.tree["current"]:
+            new_id = st.session_state.get("nav_selection_box")
+            if not new_id:
+                return
+
+            # DEFENSIVE: Ensure the target node still exists in the potentially reset session state
+            tree = st.session_state.get("tree")
+            if not tree or new_id not in tree.get("nodes", {}):
+                # Fallback: Reset UI selection to whatever the tree thinks is current
+                if tree and "current" in tree:
+                     st.session_state["nav_selection_box"] = tree["current"]
+                return
+
+            if new_id != tree["current"]:
                 # 1. Capture Current Draft before Leaving
                 current_draft = st.session_state.get("editor_html", "")
                 if current_draft:
-                    st.session_state.tree["nodes"][st.session_state.tree["current"]].setdefault("metadata", {})["html"] = current_draft
+                    tree["nodes"][tree["current"]].setdefault("metadata", {})["html"] = current_draft
                 
                 # 2. Perform Navigation
-                navigate_to_node(st.session_state.tree, new_id)
+                navigate_to_node(tree, new_id)
                 
                 # 3. Resolve Target Content (with robust fallback)
-                target_html = get_nearest_html(st.session_state.tree, new_id)
+                target_html = get_nearest_html(tree, new_id)
                 # If target has NO saved state (like a new idea), PRESERVE the current draft instead of clearing
                 if not target_html:
                     target_html = current_draft
@@ -178,7 +189,7 @@ def render_sidebar_map(tree, show_header: bool = True):
                 st.session_state.editor_version += 1
                 
                 # Auto-pin
-                target_node = st.session_state.tree["nodes"][new_id]
+                target_node = tree["nodes"][new_id]
                 if target_node.get("type") != "root":
                     meta = target_node.get("metadata", {})
                     pin_obj = {

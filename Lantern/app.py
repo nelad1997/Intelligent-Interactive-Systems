@@ -1150,11 +1150,16 @@ def main():
                                 child["metadata"]["selected_path"] = True
 
                                 # --- Automatic Sibling Dismissal ---
-                                for sibling_id in current_node["children"]:
+                                for sibling_id in current_node.get("children", []):
                                     if sibling_id != cid:
                                         st.session_state.dismissed_suggestions.add(sibling_id)
 
-                                navigate_to_node(tree, cid)
+                                # DEFENSIVE: Ensure the target node still exists in the potentially reset session state
+                                if cid in tree.get("nodes", {}):
+                                    navigate_to_node(tree, cid)
+                                else:
+                                    st.error("This suggestion is no longer available. Please refresh the list.")
+                                    st.rerun()
                                 
                                 # CRITICAL: Update editor text and increment version to force Quill to re-mount
                                 st.session_state["editor_html"] = child.get("metadata", {}).get("html", "")
