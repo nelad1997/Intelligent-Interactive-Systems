@@ -339,14 +339,14 @@ def sync_paragraph_selection():
         if paras:
             st.session_state["promo_block_selector_idx"] = max(0, min(saved_idx, len(paras)-1))
 
-def get_structural_segments(current_html):
+def get_document_structure(current_html):
     """
     Deterministic structural segmentation of HTML.
     Identifies units based on block-level tags and line breaks.
-    Returns a list of clean text strings (segments).
+    Returns (title_string or None, list_of_paragraph_strings).
     """
     if not current_html or not current_html.strip():
-        return []
+        return None, []
 
     # Clean styling and irrelevant tags
     no_css = re.sub(r"<style.*?>.*?</style>", "", current_html, flags=re.DOTALL | re.IGNORECASE)
@@ -358,34 +358,34 @@ def get_structural_segments(current_html):
     # findall for block-level contents
     blocks = re.findall(r"<(p|h[1-6]|div|li|blockquote)[^>]*>(.*?)</\1>", processed_html, re.DOTALL | re.IGNORECASE)
     
-    segments = []
+    all_segments = []
     if blocks:
         for tag, content in blocks:
-            tag_name = tag.lower()
-            # We NO LONGER skip headers, as they are often titles
-            
             clean_text = re.sub("<[^<]+?>", "", content).replace("&nbsp;", " ").strip()
             if not clean_text:
                 continue
-                
-            # Split on double newlines or single newlines if it looks like a title/list
             raw_splits = [s.strip() for s in re.split(r"\n+", clean_text) if s.strip()]
-            
-            for i, ss in enumerate(raw_splits):
-                # Heuristic: If it's the first line and short, it's probably a title/header.
-                # Otherwise, we might want to group consecutive short lines, but for now, 
-                # let's just ensure we capture them.
-                if len(ss) >= 3: # Allow very short titles
-                    segments.append(ss)
+            for ss in raw_splits:
+                if len(ss) >= 3:
+                    all_segments.append(ss)
     else:
         # Fallback for plain text or unstructured HTML
         plain_text = re.sub("<[^<]+?>", "", processed_html).replace("&nbsp;", " ").strip()
-        raw_parts = [p.strip() for p in re.split(r"\n+", plain_text) if p.strip()]
-        for part in raw_parts:
-            if len(part) >= 3: 
-                segments.append(part)
+        all_segments = [p.strip() for p in re.split(r"\n+", plain_text) if len(p.strip()) >= 3]
             
-    return segments
+    if not all_segments:
+        return None, []
+
+    # Heuristic: Identify if the first line is a Title
+    first = all_segments[0]
+    is_title_length = len(first) < 250
+    ends_with_punct = first.endswith(('.', '?', '!', ':', ';'))
+    
+    # If first line is short and doesn't end in typical paragraph punctuation
+    if is_title_length and not (len(first) > 100 and ends_with_punct):
+        return first, all_segments[1:]
+    
+    return None, all_segments
 
 # -------------------------------------------------
 # Main App
@@ -448,7 +448,8 @@ def main():
     if current_html.strip():
         # Only re-fetch if empty to provide a stable substrate
         if not st.session_state.get("structural_segments"):
-            st.session_state.structural_segments = get_structural_segments(current_html)
+            _, paras = get_document_structure(current_html)
+            st.session_state.structural_segments = paras
     else:
         st.session_state.structural_segments = []
 
@@ -600,21 +601,8 @@ def main():
                             p_clean = re.sub(r"^(?:\[P\s*\d+\]|Block\s*\d+:?|\d+[\.)]|[*•\-])\s*", "", p, flags=re.IGNORECASE).strip()
                             preview = (p_clean[:60] + "...") if len(p_clean) > 60 else p_clean
                             
-                            # Improved Identification of Title/Header vs Paragraph
+                            # All segments in this list are now considered paragraphs
                             label_idx = f"{i+1}"
-                            p_clean_stripped = p_clean.strip()
-                            
-                            # Heuristics:
-                            is_very_short = len(p_clean_stripped) < 60
-                            is_title_length = len(p_clean_stripped) < 250
-                            ends_with_punct = p_clean_stripped.endswith(('.', '?', '!', ':', ';'))
-                            
-                            if i == 0:
-                                if is_title_length:
-                                    label_idx = "Title"
-                            elif i < 5 and (is_very_short or (is_title_length and not ends_with_punct)):
-                                label_idx = f"H{i}" # e.g. H1, H2 for early short segments
-                            
                             options.append(f"[{label_idx}] {preview}")
                         
                         saved_idx = st.session_state.get("promo_block_selector_idx", 0)
@@ -658,8 +646,9 @@ def main():
                 has_content = bool(st.session_state.get("editor_html", "").strip())
                 if has_content:
                     st.markdown("<div style='margin-top: 5px;'></div>", unsafe_allow_html=True)
-                    if st.button("🔄 Refresh Structure", use_container_width=True, help="Update the segments based on current changes."):
-                        st.session_state.structural_segments = get_structural_segments(st.session_state.get("editor_html", ""))
+                    if st.button("🔄 Refresh Structure", use_container_width=True, help="Update the segments based on current changes (excluding title)."):
+                        _, paragraphs = get_document_structure(st.session_state.get("editor_html", ""))
+                        st.session_state.structural_segments = paragraphs
                         st.toast("Updated document structure!")
                         st.rerun()
 
@@ -779,24 +768,16 @@ def main():
                         current_node["metadata"]["draft_plain"] = plain_text
                         # Update Root Label if this is the root node
                         if current_node.get("type") == "root":
-                            # Use the first segment from our improved logic as the title
-                            improved_segments = get_structural_segments(clean_html)
-                            if improved_segments:
-                                first_seg = improved_segments[0].strip()
-                                # More robust title detection for root labeling
-                                is_title_length = len(first_seg) < 250
-                                ends_with_punct = first_seg.endswith(('.', '?', '!'))
+                            doc_title, paragraphs = get_document_structure(clean_html)
+                            if doc_title:
+                                title_topic = re.sub(r"^(?:\[P\s*\d+\]|Block\s*\d+:?|\d+[\.)]|[*•\-])\s*", "", doc_title, flags=re.IGNORECASE).strip()
+                                if len(title_topic) > 60: title_topic = title_topic[:57] + "..."
+                                current_node["metadata"]["label"] = f"[{title_topic}]"
+                            elif paragraphs:
+                                current_node["metadata"]["label"] = f"[{paragraphs[0][:25]}...]"
                                 
-                                if is_title_length and not (len(first_seg) > 100 and ends_with_punct):
-                                    title_topic = re.sub(r"^(?:\[P\s*\d+\]|Block\s*\d+:?|\d+[\.)]|[*•\-])\s*", "", first_seg, flags=re.IGNORECASE).strip()
-                                    if len(title_topic) > 60: title_topic = title_topic[:57] + "..."
-                                    current_node["metadata"]["label"] = f"[{title_topic}]"
-                                else:
-                                    # If first segment is long or clearly a sentence, take a tiny snippet
-                                    current_node["metadata"]["label"] = f"[{first_seg[:25]}...]"
-                                
-                                # Sync structural segments
-                                st.session_state.structural_segments = improved_segments
+                            # Sync paragraphs to state (excluding title)
+                            st.session_state.structural_segments = paragraphs
                         
                         st.session_state.last_edit_time = time.time()
                         
@@ -1000,7 +981,8 @@ def main():
                                 
                                 html_val = "\n".join(html_blocks)
                                 st.session_state["editor_html"] = html_val
-                                st.session_state.structural_segments = get_structural_segments(html_val) # RE-SEGMENT on import
+                                _, paragraphs = get_document_structure(html_val)
+                                st.session_state.structural_segments = paragraphs # RE-SEGMENT on import (excluding title)
                                 current_node.setdefault("metadata", {})["html"] = html_val
                                 st.session_state.editor_version += 1
                                 st.session_state["last_imported_doc"] = uploaded_doc.name
