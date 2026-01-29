@@ -710,6 +710,8 @@ def main():
                     st.session_state.promo_focus_mode = "Whole Document"
                     if "promo_focus_mode_radio" in st.session_state:
                         del st.session_state["promo_focus_mode_radio"]
+                    if "last_imported_doc" in st.session_state:
+                        del st.session_state["last_imported_doc"]
                     
                     # Reset UI/Meta state
                     st.session_state.root_topic_resolved = False
@@ -936,14 +938,20 @@ def main():
         with c_io_1:
             import_tooltip = "Import a DOCX or PDF file to replace the current text in the editor."
             with st.popover("📥 Import", use_container_width=True, help=import_tooltip):
+                # Dynamic key forces widget reset when editor_version changes (e.g. on Global Reset)
+                uploader_key = f"doc_import_right_{st.session_state.get('editor_version', 0)}"
                 uploaded_doc = st.file_uploader("Upload DOCX/PDF to replace content", type=["pdf", "docx", "txt", "md"],
-                                                key="doc_import_right")
+                                                key=uploader_key)
                 if uploaded_doc:
                     file_ext = uploaded_doc.name.split('.')[-1].lower()
                     if file_ext not in ['pdf', 'docx']:
                         st.error("Error: File type not supported. Please upload a DOCX or PDF file.")
                     else:
-                        if st.session_state.get("last_imported_doc") != uploaded_doc.name:
+                        # Allow re-import if editor is empty OR if file changed
+                        is_new_file = st.session_state.get("last_imported_doc") != uploaded_doc.name
+                        is_empty_editor = not st.session_state.get("editor_html", "").strip()
+                        
+                        if is_new_file or is_empty_editor:
                             doc_text = extract_text_from_file(uploaded_doc)
                             if doc_text is not None:
                                 escaped_text = html.escape(doc_text)
@@ -954,15 +962,6 @@ def main():
                                 st.session_state.editor_version += 1
                                 st.session_state["last_imported_doc"] = uploaded_doc.name
                                 st.rerun()
-
-                        # --- NEW: Safe Clear/Reset Button ---
-                        st.divider()
-                        if st.button("🗑 Clear Editor", use_container_width=True, help="Safely remove all text from the editor."):
-                             st.session_state["editor_html"] = ""
-                             st.session_state.structural_segments = []
-                             current_node.setdefault("metadata", {})["html"] = ""
-                             st.session_state.editor_version += 1
-                             st.rerun()
 
         with c_io_2:
             export_tooltip = "Export your draft to DOCX or PDF format."
