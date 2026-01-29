@@ -170,6 +170,7 @@ def render_sidebar_map(tree, show_header: bool = True):
                 # 1. Capture Current Draft before Leaving
                 current_draft = st.session_state.get("editor_html", "")
                 if current_draft:
+                    # Sync to the node we ARE CURRENTLY ON before moving
                     tree["nodes"][tree["current"]].setdefault("metadata", {})["html"] = current_draft
                 
                 # 2. Perform Navigation
@@ -177,17 +178,18 @@ def render_sidebar_map(tree, show_header: bool = True):
                 
                 # 3. Resolve Target Content (with robust fallback)
                 target_html = get_nearest_html(tree, new_id)
-                # If target has NO saved state (like a new idea), PRESERVE the current draft instead of clearing
-                if not target_html:
-                    target_html = current_draft
                 
-                st.session_state["editor_html"] = target_html
+                # If target has NO saved state (like a new idea), 
+                # we keep the current draft if they are related, but get_nearest_html 
+                # already handles walking up the tree. 
+                st.session_state["editor_html"] = target_html or current_draft
                 
                 # 4. Force Quill Re-mount
                 if "editor_version" not in st.session_state:
                     st.session_state.editor_version = 0
                 st.session_state.editor_version += 1
                 
+                st.rerun()
                 # Auto-pin
                 target_node = tree["nodes"][new_id]
                 if target_node.get("type") != "root":

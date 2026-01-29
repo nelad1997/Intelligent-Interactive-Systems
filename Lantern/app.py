@@ -71,7 +71,7 @@ if logo_full_path:
         logger.error(f"❌ LOGO LOAD ERROR: {e}")
         page_logo = "🏮"
 
-st.set_page_config(page_title="Lantern", page_icon=page_logo, layout="wide")
+st.set_page_config(page_title="Lantern", page_icon=page_logo, layout="wide", initial_sidebar_state="collapsed")
 
 
 # -------------------------------------------------
@@ -572,7 +572,7 @@ def main():
 
         # --- (3) AI Context & Structure "Folder" ---
         # --- (3) AI Context & Structure "Folder" ---
-        with st.expander("🧠 AI Context & Structure", expanded=True):
+        with st.expander("🧠 AI Context & Structure", expanded=False):
             tab1, tab2, tab3 = st.tabs(["🎯 Focus Range", "📑 Segmentation", "👁️ Focus Preview"])
             
             with tab1:
@@ -1258,15 +1258,15 @@ def main():
                                     if sibling_id != cid:
                                         st.session_state.dismissed_suggestions.add(sibling_id)
 
-                                # DEFENSIVE: Ensure the target node still exists in the potentially reset session state
-                                if cid in tree.get("nodes", {}):
-                                    navigate_to_node(tree, cid)
+                                # --- Navigation & State Sync ---
+                                if cid in st.session_state.tree.get("nodes", {}):
+                                    navigate_to_node(st.session_state.tree, cid)
+                                    # Use the nearest HTML (which fallback to current_node if already set above)
+                                    final_html = get_nearest_html(st.session_state.tree, cid)
+                                    st.session_state["editor_html"] = final_html
                                 else:
-                                    st.error("This suggestion is no longer available. Please refresh the list.")
-                                    st.rerun()
+                                    st.error("This suggestion is no longer available.")
                                 
-                                # CRITICAL: Update editor text and increment version to force Quill to re-mount
-                                st.session_state["editor_html"] = child.get("metadata", {}).get("html", "")
                                 if "editor_version" not in st.session_state:
                                     st.session_state.editor_version = 0
                                 st.session_state.editor_version += 1
