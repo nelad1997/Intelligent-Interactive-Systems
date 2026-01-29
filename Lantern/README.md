@@ -32,13 +32,6 @@ Add your API Key to .env file:
 ```bash
 streamlit run app.py
 ```
-
----
-   
-4. **Graphviz Support**: The included `packages.txt` ensures that Graphviz is automatically installed on the cloud environment.
-
----
-
 ## 🛠 Features Summary
 - **Thought Tree Visualization**: Real-time Graphviz map of your brainstorming process in the sidebar.
 - **Contextual Actions**:
