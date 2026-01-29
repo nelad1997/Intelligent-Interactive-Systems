@@ -35,15 +35,6 @@ streamlit run app.py
 ```
 
 ---
-
-## ☁️ Deployment (Streamlit Cloud)
-
-To deploy Lantern to Streamlit Cloud:
-1. **Push to GitHub**: Ensure all files (including `packages.txt` and `requirements.txt`) are pushed to your repository.
-2. **Connect Streamlit**: Create a new app on [Streamlit Cloud](https://share.streamlit.io/) and point it to your repo.
-3. **Add Secrets**: In the Streamlit App Settings -> Secrets, add your API key:
-   ```toml
-   GEMINI_API_KEY = "your_actual_key_here"
    ```
 4. **Graphviz Support**: The included `packages.txt` ensures that Graphviz is automatically installed on the cloud environment.
 
