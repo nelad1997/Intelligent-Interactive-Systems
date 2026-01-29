@@ -362,8 +362,8 @@ def _handle_action(tree: Dict, event_context: Dict[str, Any], system_rules: str)
 
     # בניית Constraints
     constraints = []
-    if system_rules:
-        constraints.append("### ACADEMIC WRITING PRINCIPLES ###\n" + system_rules)
+    # NOTE: We do NOT append 'system_rules' here anymore because they are passed 
+    # as the 'system_instruction' argument to the LLM client, preventing duplication.
 
     if pinned_context:
         # Only send pinned items for DIVERGE to save tokens. 

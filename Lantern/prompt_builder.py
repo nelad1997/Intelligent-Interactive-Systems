@@ -17,6 +17,9 @@ def build_prompt(action: ActionType, focus: str, instructions: str = "") -> str:
             "You are a world-class academic mentor. Your task is to suggest "
             "new directions to develop the author's argument.\n"
             "MODE: EXPLORE (Thematic Divergence)\n\n"
+            
+            "--- CONTEXT & CONSTRAINTS ---\n"
+            f"{instructions}\n\n"
 
             "INSTRUCTIONS:\n"
             "1. Apply Module 4 (Synthesis) from the principles below.\n"
@@ -82,6 +85,9 @@ def build_prompt(action: ActionType, focus: str, instructions: str = "") -> str:
             "weaknesses in the text to help the author make the argument bulletproof.\n"
             "MODE: CHALLENGE (Devil’s Advocate)\n\n"
 
+            "--- CONTEXT & CONSTRAINTS ---\n"
+            f"{instructions}\n\n"
+
             "INSTRUCTIONS:\n"
             "1. Context Awareness: Infer the theoretical or analytical lens. Critique how well it applies that lens.\n"
             "2. Apply Module 1 (Logical Rigor) and Module 5 (Ethics/Bibliography).\n"
@@ -109,6 +115,7 @@ def build_prompt(action: ActionType, focus: str, instructions: str = "") -> str:
         return (
             "You are a linguistic analyst. Your goal is to regroup the provided text into its core 'Logical Paragraphs' (Argument Units).\n"
             "MODE: SEGMENT (Logical Argument Analysis)\n\n"
+            f"{instructions}\n\n"
             "--- OPERATIONAL DEFINITION ---\n"
             "A logical paragraph is a single, complete unit of argument: one central claim + its supporting explanations, reasons, or examples.\n\n"
             "--- SEGMENTATION RULES ---\n"
