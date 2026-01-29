@@ -11,6 +11,11 @@ import io
 import html  # Added for safe text escaping
 import sys
 import PIL.Image
+import logging
+
+# Set up logging for app.py
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
 # --- Environment Hardening for Streamlit Cloud ---
 # Explicitly add the script's directory to sys.path to ensure local imports like 'definitions' are reliable
@@ -412,6 +417,99 @@ def main():
         st.session_state.promo_block_selector_idx = 0
     if "promo_focus_mode" not in st.session_state:
         st.session_state.promo_focus_mode = "Whole Document"
+
+    # ==========================================
+    # EXECUTE PENDING AI ACTIONS (Top Level)
+    # ==========================================
+    if st.session_state.get("pending_action") and st.session_state.get("is_thinking"):
+        if not st.session_state.get("llm_in_flight", False):
+            # CRITICAL: Clear pending_action IMMEDIATELY
+            payload = st.session_state.pending_action
+            st.session_state.pending_action = None
+            st.session_state.llm_in_flight = True
+            
+            try:
+                # --- LATE-BINDING FOCUS CALCULATION ---
+                current_html = st.session_state.get("editor_html", "")
+                f_mode = st.session_state.get("promo_focus_mode", "Whole Document")
+                paras = st.session_state.get("structural_segments", [])
+                
+                if not paras and current_html.strip():
+                    st.session_state.structural_segments = get_structural_segments(current_html)
+                    # No recursion here, just use it
+                
+                final_text = ""
+                final_block_idx = 1
+                if f_mode == "Specific Paragraph" and st.session_state.get("structural_segments"):
+                    saved_idx = st.session_state.get("promo_block_selector_idx", 0)
+                    saved_idx = max(0, min(saved_idx, len(st.session_state.structural_segments)-1))
+                    final_text = st.session_state.structural_segments[saved_idx]
+                    final_block_idx = saved_idx + 1
+                else:
+                    no_css = re.sub(r"<style.*?>.*?</style>", "", current_html, flags=re.DOTALL | re.IGNORECASE)
+                    txt_s = re.sub(r"<(p|div|h[1-6]|li|blockquote|br)[^>]*>", "\n", no_css)
+                    txt_s = re.sub(r"</(p|div|h[1-6]|li|blockquote)>", "\n", txt_s)
+                    final_text = re.sub("<[^<]+?>", "", txt_s).replace("&nbsp;", " ").strip()
+                    final_text = re.sub(r"\n{3,}", "\n\n", final_text)
+                    if not final_text and current_html.strip():
+                        final_text = re.sub("<[^<]+?>", "", current_html).strip()
+
+                st.session_state["focused_text"] = final_text 
+                
+                f_context = {"mode": f_mode, "block_idx": final_block_idx}
+                m_label, _ = get_ui_state(tree)
+                
+                logger.info(f"⚡ UI TRIGGER: Action={payload['action'].name} | Focus={f_mode} | Text={len(final_text)} chars")
+                
+                with st.spinner(f"💡 Lantern is {m_label.lower()}..."):
+                    # Dynamic import to avoid circular dependency if any
+                    from controller import handle_event
+                    
+                    response = handle_event(st.session_state.tree, UserEventType.ACTION, {
+                        "action": payload["action"],
+                        "anchor_id": payload.get("anchor_id"),
+                        "pinned_context": st.session_state.tree["pinned_items"],
+                        "banned_ideas": st.session_state.banned_ideas,
+                        "user_text": final_text,
+                        "knowledge_base": st.session_state.get("knowledge_base", {}),
+                        "focus_context": f_context,
+                        "logical_paragraphs": st.session_state.get("structural_segments", [])
+                    })
+                
+                if payload["action"] == ActionType.CRITIQUE:
+                    items = response.get("items", [])
+                    if not items:
+                        st.session_state["ai_info_message"] = "🛡️ Lantern analyzed your draft and found it to be logically sound—no further critiques needed at this time."
+                    st.session_state["current_critiques"] = items
+                elif payload["action"] == ActionType.DIVERGE:
+                    options = response.get("options", [])
+                    if not options:
+                        st.session_state["ai_info_message"] = "🌱 Lantern explored alternative paths but concludes the current reasoning is already comprehensive."
+                elif payload["action"] == ActionType.REFINE:
+                    if response.get("mode") == "refine_suggestions":
+                        items = response.get("items", [])
+                        if not items:
+                            st.session_state["ai_info_message"] = "✨ Lantern polished your draft and finds no granular improvements necessary right now."
+                        st.session_state.pending_refine_edits = items
+                    else:
+                        st.session_state.pending_refine_edits = [{
+                            "id": f"full_refine_{os.urandom(2).hex()}",
+                            "original": final_text,
+                            "proposed": response.get("refined_text", ""),
+                            "type": "Full Revision",
+                            "reason": "Lantern provided a comprehensive revision of the text.",
+                            "status": "pending",
+                            "scope": f_context.get("mode", "Whole Document")
+                        }]
+                elif payload["action"] == ActionType.SEGMENT:
+                    st.session_state.logical_paragraphs = response.get("paragraphs", [])
+                    st.session_state.last_segmented_text = final_text
+            except Exception as e:
+                st.error(f"❌ Gemini Error: {e}")
+            finally:
+                st.session_state.llm_in_flight = False
+                st.session_state.is_thinking = False
+                st.rerun()
     
     # --- GLOBAL STRUCTURAL SYNC ---
     # Ensure segments exist before ANY logic or UI starts
@@ -1203,106 +1301,6 @@ def main():
                                 st.rerun()
 
 
-    # ==========================================
-    # EXECUTE PENDING AI ACTIONS (Top Level)
-    # ==========================================
-    if st.session_state.pending_action and st.session_state.is_thinking:
-        if not st.session_state.llm_in_flight:
-            # CRITICAL: Clear pending_action IMMEDIATELY to prevent duplicate calls on Streamlit reruns
-            payload = st.session_state.pending_action
-            st.session_state.pending_action = None
-            st.session_state.llm_in_flight = True
-            
-            try:
-                # --- LATE-BINDING FOCUS CALCULATION ---
-                # We calculate the focus text HERE, after all widgets have had a chance to update.
-                current_html = st.session_state.get("editor_html", "")
-                f_mode = st.session_state.get("promo_focus_mode", "Whole Document")
-                paras = st.session_state.get("structural_segments", [])
-                
-                # Stability: If structural segments were never initialized, do it now
-                if not paras and current_html.strip():
-                    st.session_state.structural_segments = get_structural_segments(current_html)
-                    paras = st.session_state.structural_segments
-                
-                final_text = ""
-                final_block_idx = 1
-                
-                if f_mode == "Specific Paragraph" and paras:
-                    saved_idx = st.session_state.get("promo_block_selector_idx", 0)
-                    saved_idx = max(0, min(saved_idx, len(paras)-1))
-                    final_text = paras[saved_idx]
-                    final_block_idx = saved_idx + 1
-                else:
-                    # Full Doc Extraction
-                    no_css = re.sub(r"<style.*?>.*?</style>", "", current_html, flags=re.DOTALL | re.IGNORECASE)
-                    txt_s = re.sub(r"<(p|div|h[1-6]|li|blockquote|br)[^>]*>", "\n", no_css)
-                    txt_s = re.sub(r"</(p|div|h[1-6]|li|blockquote)>", "\n", txt_s)
-                    final_text = re.sub("<[^<]+?>", "", txt_s).replace("&nbsp;", " ").strip()
-                    final_text = re.sub(r"\n{3,}", "\n\n", final_text)
-                    if not final_text and current_html.strip():
-                        final_text = re.sub("<[^<]+?>", "", current_html).strip()
-
-                st.session_state["focused_text"] = final_text # Sync preview back for consistency
-                
-                f_context = {
-                    "mode": f_mode,
-                    "block_idx": final_block_idx
-                }
-
-                # Re-fetch mode label for the spinner
-                m_label, _ = get_ui_state(tree)
-                
-                logger.info(f"⚡ UI TRIGGER: Action={payload['action'].name} | Focus={f_mode} | Text={len(final_text)} chars")
-                
-                with st.spinner(f"💡 Lantern is {m_label.lower()}..."):
-                    response = handle_event(st.session_state.tree, UserEventType.ACTION, {
-                        "action": payload["action"],
-                        "anchor_id": payload.get("anchor_id"),
-                        "pinned_context": st.session_state.tree["pinned_items"],
-                        "banned_ideas": st.session_state.banned_ideas,
-                        "user_text": final_text,
-                        "knowledge_base": st.session_state.get("knowledge_base", {}),
-                        "focus_context": f_context,
-                        "logical_paragraphs": paras
-                    })
-                
-                if payload["action"] == ActionType.CRITIQUE:
-                    items = response.get("items", [])
-                    if not items:
-                        st.session_state["ai_info_message"] = "🛡️ Lantern analyzed your draft and found it to be logically sound—no further critiques needed at this time."
-                    st.session_state["current_critiques"] = items
-                elif payload["action"] == ActionType.DIVERGE:
-                    options = response.get("options", [])
-                    if not options:
-                        st.session_state["ai_info_message"] = "🌱 Lantern explored alternative paths but concludes the current reasoning is already comprehensive."
-                elif payload["action"] == ActionType.REFINE:
-                    if response.get("mode") == "refine_suggestions":
-                        items = response.get("items", [])
-                        if not items:
-                            st.session_state["ai_info_message"] = "✨ Lantern polished your draft and finds no granular improvements necessary right now."
-                        st.session_state.pending_refine_edits = items
-                    else:
-                        st.session_state.pending_refine_edits = [{
-                            "id": f"full_refine_{os.urandom(2).hex()}",
-                            "original": payload["user_text"],
-                            "proposed": response.get("refined_text", ""),
-                            "type": "Full Revision",
-                            "reason": "Lantern provided a comprehensive revision of the text.",
-                            "status": "pending",
-                            "scope": f_context.get("mode", "Whole Document")
-                        }]
-                elif payload["action"] == ActionType.SEGMENT:
-                    paras = response.get("paragraphs", [])
-                    st.session_state.logical_paragraphs = paras
-                    st.session_state.last_segmented_text = payload["user_text"]
-            except Exception as e:
-                st.error(f"❌ Gemini Error: {e}")
-            finally:
-                # --- Automatic Structural Refresh Disabled (Fix for Rate Limits) ---
-                pass
-
-                st.session_state.llm_in_flight = False
                 st.session_state.is_thinking = False
                 st.rerun()
 
