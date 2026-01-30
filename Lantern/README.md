@@ -41,8 +41,7 @@ pip install -r requirements.txt
 ```
 
 ### 4. Configuration
-1. Duplicate the `.env.example` file and rename it to `.env`.
-2. Open `.env` and paste your Gemini API Key:
+Open `.env` and paste your API Key:
    ```env
    GEMINI_API_KEY=your_actual_api_key_here
    ```
@@ -52,7 +51,7 @@ pip install -r requirements.txt
 To change the AI model (e.g., if you have access to different versions):
 1. Open `llm_client.py`.
 2. Go to **Line 68** (look for `model_name="..."`).
-3. Change the string to your desired model (e.g., `"gemini-1.5-pro"`, `"gemini-2.0-flash"`).
+3. Change the string to your desired model (e.g., `"gemini-2.5-pro"`, `"gemini-2.5-flash"`).
 
 
 ### 5. Run the App
