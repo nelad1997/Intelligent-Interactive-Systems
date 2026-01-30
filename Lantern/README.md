@@ -50,7 +50,7 @@ Open `.env` and paste your API Key:
 ### 4.1 Model Settings (Optional)
 To change the AI model (e.g., if you have access to different versions):
 1. Open `llm_client.py`.
-2. Go to **Line 68** (look for `model_name="..."`).
+2. Go to **Line 69** (look for `model_name="..."`).
 3. Change the string to your desired model (e.g., `"gemini-2.5-pro"`, `"gemini-2.5-flash"`).
 
 
