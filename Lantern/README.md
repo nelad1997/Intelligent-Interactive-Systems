@@ -41,11 +41,19 @@ pip install -r requirements.txt
 ```
 
 ### 4. Configuration
-Create a file named `.env` in the project root and add your Gemini API Key:
-```env
-GEMINI_API_KEY=your_actual_api_key_here
-```
-*You can get a free API key at [Google AI Studio](https://aistudio.google.com/).*
+1. Duplicate the `.env.example` file and rename it to `.env`.
+2. Open `.env` and paste your Gemini API Key:
+   ```env
+   GEMINI_API_KEY=your_actual_api_key_here
+   ```
+   *You can get a free API key at [Google AI Studio](https://aistudio.google.com/).*
+
+### 4.1 Model Settings (Optional)
+To change the AI model (e.g., if you have access to different versions):
+1. Open `llm_client.py`.
+2. Go to **Line 68** (look for `model_name="..."`).
+3. Change the string to your desired model (e.g., `"gemini-1.5-pro"`, `"gemini-2.0-flash"`).
+
 
 ### 5. Run the App
 ```bash
@@ -76,12 +84,8 @@ streamlit run app.py
 ---
 
 ## ☁️ Cloud Deployment
-Lantern is live and optimized for [Streamlit Cloud](https://lantern.streamlit.app/).
+Lantern is running live at: **[https://lantern.streamlit.app/](https://lantern.streamlit.app/)**
 
-To deploy your own version:
-1. Point Streamlit to the `Lantern/Lantern/app.py` path.
-2. Add your `GEMINI_API_KEY` to the **Secrets** section in the Streamlit Dashboard.
-3. The `packages.txt` file ensures Graphviz works out-of-the-box on the cloud server.
 
 ---
 *Created for the Intelligent Interactive Systems course at Technion.*
