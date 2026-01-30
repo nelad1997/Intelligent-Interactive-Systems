@@ -8,7 +8,10 @@ import logging
 import streamlit as st
 
 # Ensure sessions directory exists
-SESSIONS_DIR = os.path.join(os.getcwd(), "sessions")
+# Ensure sessions directory exists
+# Use absolute path relative to this script to ensure consistency regardless of CWD
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+SESSIONS_DIR = os.path.join(BASE_DIR, "sessions")
 if not os.path.exists(SESSIONS_DIR):
     os.makedirs(SESSIONS_DIR)
 
