@@ -1,6 +1,67 @@
 
 import uuid
 import datetime
+import os
+import json
+import tempfile
+import logging
+import streamlit as st
+
+# Ensure sessions directory exists
+SESSIONS_DIR = os.path.join(os.getcwd(), "sessions")
+if not os.path.exists(SESSIONS_DIR):
+    os.makedirs(SESSIONS_DIR)
+
+logger = logging.getLogger(__name__)
+
+def get_session_id():
+    """Retrieves a stable session ID from st.session_state."""
+    if "stable_session_id" not in st.session_state:
+        st.session_state.stable_session_id = str(uuid.uuid4())[:8]
+        logger.info(f"✨ NEW SESSION INIT: {st.session_state.stable_session_id}")
+    return st.session_state.stable_session_id
+
+def save_tree(tree):
+    """Saves the tree to disk safely."""
+    try:
+        sid = get_session_id()
+        filename = f"tree_{sid}.json"
+        filepath = os.path.join(SESSIONS_DIR, filename)
+        
+        # Save only serializable data
+        data = {
+            "nodes": tree["nodes"],
+            "current": tree["current"],
+            "pinned_items": tree.get("pinned_items", []),
+            "timestamp": str(datetime.datetime.now())
+        }
+        
+        with tempfile.NamedTemporaryFile("w", delete=False, dir=SESSIONS_DIR, encoding="utf-8") as tmp:
+            json.dump(data, tmp, indent=2)
+            temp_name = tmp.name
+            
+        if os.path.exists(filepath):
+            os.remove(filepath)
+        os.rename(temp_name, filepath)
+    except Exception as e:
+        logger.error(f"❌ Save Failed: {e}")
+
+def load_tree():
+    """Loads tree from disk if available."""
+    try:
+        sid = get_session_id()
+        filepath = os.path.join(SESSIONS_DIR, f"tree_{sid}.json")
+        if os.path.exists(filepath):
+            with open(filepath, "r", encoding="utf-8") as f:
+                data = json.load(f)
+            return {
+                "nodes": data["nodes"],
+                "current": data["current"],
+                "pinned_items": data.get("pinned_items", [])
+            }
+    except Exception as e:
+        logger.error(f"❌ Load Failed: {e}")
+    return None
 
 def init_tree(initial_question):
     """Initializes the tree structure."""
@@ -41,6 +102,9 @@ def add_child(tree, parent_id, summary, node_type="standard", metadata=None):
     if parent_id in tree["nodes"]:
         tree["nodes"][parent_id]["children"].append(child_id)
     
+    # Auto-save on modification
+    save_tree(tree)
+    
     return child_id
 
 def get_node(tree, node_id):
@@ -69,6 +133,7 @@ def navigate_to_node(tree, node_id):
 
     if node_id in tree.get("nodes", {}):
         tree["current"] = node_id
+        save_tree(tree)
     else:
         import logging
         logger = logging.getLogger(__name__)
