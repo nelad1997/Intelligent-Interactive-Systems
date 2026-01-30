@@ -47,11 +47,12 @@ Open `.env` and paste your API Key:
    ```
    *You can get a free API key at [Google AI Studio](https://aistudio.google.com/).*
 
-### 4.1 Model Settings (Optional)
-To change the AI model (e.g., if you have access to different versions):
+### 4.1 Model Settings
+Lantern was developed, tested, and evaluated using Gemini 2.5 Pro — this is the recommended default model.
+change the AI model (e.g., if you have access to different versions-Gemini 2.5 Pro is the deafult version):
 1. Open `llm_client.py`.
 2. Go to **Line 69** (look for `model_name="..."`).
-3. Change the string to your desired model (e.g., `"gemini-2.5-pro"`, `"gemini-2.5-flash"`).
+3. Change the string to your desired model (e.g.,`"gemini-2.5-flash"`).
 
 
 ### 5. Run the App
