@@ -9,7 +9,7 @@ The system doesn't just "fix" your text; it acts as a **Senior Research Partner*
 ## 🏗️ What is Lantern?
 
 Lantern transforms writing from a linear task into a multi-dimensional exploration. It helps you:
-- **🌱 Explore Alternatives**: Don't settle for the first draft. Use the "Diverge" tool to see different ways a paragraph could be developed.
+- **🌱 Explore **: Don't settle for the first draft. Use the "Expand" tool to see different ways a paragraph could be developed.
 - **🛡️ Stress-Test Logic**: The "Critique" engine uses a specialized "Devil's Advocate" mode to find gaps in your evidence.
 - **🪄 Refine with Purpose**: Automate the "Old-to-New" information principle for professional, cohesive prose.
 - **🗺️ Visualize Your Mind**: Every interaction is mapped on a Graphviz tree in the sidebar, allowing you to "time-travel" between different versions of your work.
