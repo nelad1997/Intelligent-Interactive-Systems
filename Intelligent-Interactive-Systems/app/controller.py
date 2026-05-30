@@ -210,6 +210,9 @@ def apply_fuzzy_replacement(full_html: str, target: str, replacement: str) -> Op
         if c_norm in ['"', '"', '"', '"']: c_norm = '"'
         if c_norm in ["'", "'", "'", "'"]: c_norm = "'"
         
+        # LENIENT: Treat all whitespace as space
+        if c_norm.isspace(): c_norm = ' '
+
         if is_significant(c_norm):
             clean_plain += c_norm
             index_map.append(i)
@@ -223,6 +226,8 @@ def apply_fuzzy_replacement(full_html: str, target: str, replacement: str) -> Op
     for char in clean_target:
         c_norm = char.lower()
         if c_norm in ['–', '—', '\u2013', '\u2014']: c_norm = '-'
+        if c_norm.isspace(): c_norm = ' '
+        
         if is_significant(c_norm):
             target_clean += c_norm
         elif not target_clean or target_clean[-1] != " ":
@@ -427,9 +432,15 @@ def _handle_action(tree: Dict, event_context: Dict[str, Any], system_rules: str)
     # שליחה ל-LLM
     constraints_str = "\n".join(constraints) if constraints else ""
     
-    # Context Fix: For DIVERGE and CRITIQUE, we want the AI to know the current PERSPECTIVE (base_focus)
-    # For REFINE, we want the specific MARKED paragraphs (final_user_text) for replacement logic.
-    prompt_focus = base_focus if action in [ActionType.DIVERGE, ActionType.CRITIQUE] else final_user_text
+    # FINAL PROMPT CONSTRUCTION:
+    # We use final_user_text which has the correct paragraph markers ([PX]).
+    # We also prepend any node-level perspective context from base_focus if it exists and differs from the user text.
+    if base_focus and base_focus.strip() != user_text.strip():
+        # This adds the "Current Perspective/Idea" context to the prompt
+        prompt_focus = f"{base_focus}\n\nANALYSIS TARGET (DRAFT):\n{final_user_text}"
+    else:
+        prompt_focus = final_user_text
+
     prompt = build_prompt(action, prompt_focus, instructions=constraints_str)
     
     logger.info(f"🧠 CONTROLLER: Calling AI for action={action.name} | Focus={focus_mode}")
@@ -503,9 +514,7 @@ def _handle_action(tree: Dict, event_context: Dict[str, Any], system_rules: str)
                 "label": title,
                 "module": module,
                 "explanation": explanation,
-                "idea_text": option,
-                "scope": scope_label,
-                "source_context": event_context.get("user_text", "")
+                "scope": scope_label
             }
             # הוספה לעץ
             add_child(tree, anchor_id, explanation, metadata=meta)
@@ -565,7 +574,6 @@ def _handle_action(tree: Dict, event_context: Dict[str, Any], system_rules: str)
                 "title": title,
                 "module": module,
                 "text": body,
-                "raw_text": opt,
                 "scope": scope_label
             })
 
@@ -574,9 +582,9 @@ def _handle_action(tree: Dict, event_context: Dict[str, Any], system_rules: str)
     if action == ActionType.REFINE:
         suggestions = []
         # Support various field labels (English/Hebrew) and optional para markers
-        # Split into blocks starting with Original: or [P1] Original:
-        # Use lookahead to find next Original block or end of string
-        blocks = re.split(r"(?=\n\s*(?:\[P\d+\][ \t]*)?(?:Original|מקור):)", llm_output.strip())
+        # Improved regex to handle start of string and flexible markers
+        # Using lookahead to find next Original block without consuming it
+        blocks = re.split(r"(?im)^(?=\s*(?:\[P\d+\]\s*)?(?:Original|מקור):)", llm_output.strip())
         
         for i, block in enumerate(blocks):
             if not block.strip(): continue

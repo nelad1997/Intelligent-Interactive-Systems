@@ -91,13 +91,30 @@ def render_sidebar_map(tree, show_header: bool = True):
     graph = None
 
     with st.sidebar:
-        # Resolve Graphviz path (Windows specific)
-        graphviz_path = r"C:\Program Files (x86)\Graphviz\bin"
-        if not os.path.exists(graphviz_path):
-            graphviz_path = r"C:\Program Files\Graphviz\bin"
+        # Resolve Graphviz path
+        # 1. Check if 'dot' is already in PATH (common on Linux/Streamlit Cloud)
+        import shutil
+        dot_path = shutil.which("dot")
         
-        if os.path.exists(graphviz_path) and graphviz_path not in os.environ.get("PATH", ""):
-            os.environ["PATH"] = graphviz_path + os.pathsep + os.environ.get("PATH", "")
+        if not dot_path:
+            # 2. Fallback to common Windows locations
+            windows_paths = [
+                r"C:\Program Files\Graphviz\bin",
+                r"C:\Program Files (x86)\Graphviz\bin"
+            ]
+            for p in windows_paths:
+                if os.path.exists(p):
+                    if p not in os.environ.get("PATH", ""):
+                        os.environ["PATH"] = p + os.pathsep + os.environ.get("PATH", "")
+                    dot_path = shutil.which("dot")
+                    if dot_path:
+                        break
+
+        # 3. Diagnostic help if still missing
+        if not dot_path:
+            st.error("⚠️ Graphviz binaries not found. Please ensure Graphviz is installed and 'dot' is in your PATH.")
+            if os.name != 'nt':
+                 st.info("On Streamlit Cloud, ensure 'packages.txt' exists in the repository root with 'graphviz' inside.")
 
         if show_header:
             st.subheader("🗺️ Thought Tree")
@@ -113,7 +130,7 @@ def render_sidebar_map(tree, show_header: bool = True):
         with st.container(border=True):
             tooltip_text = (
                 "Track your reasoning process with Lantern.&#10;"
-                "🌱 Paths: Explored alternative reasoning lines.&#10;"
+                "🌱 Nodes: Explored alternative reasoning ideas.&#10;"
                 "🛡️ Strength: Counts every time you 'Acknowledge' a critique or select an idea."
             )
             st.markdown(
@@ -122,7 +139,7 @@ def render_sidebar_map(tree, show_header: bool = True):
                 unsafe_allow_html=True
             )
             c_p, c_c = st.columns(2)
-            c_p.caption(f"🌱 Paths: {paths_explored}")
+            c_p.caption(f"🌱 Nodes: {paths_explored}")
             c_c.markdown(f"<span style='font-size:0.8rem;'>🛡️ Strength: {critiques_count}</span>", unsafe_allow_html=True)
 
         st.session_state["show_full_tree"] = False
@@ -149,72 +166,6 @@ def render_sidebar_map(tree, show_header: bool = True):
             else:
                 break
 
-        def handle_navigation():
-            # GUARD: Do not navigate automatically if AI is thinking or list is refreshing
-            if st.session_state.get("is_thinking"):
-                return
-                
-            new_id = st.session_state.get("nav_selection_box")
-            if not new_id:
-                return
-
-            # DEFENSIVE: Ensure the target node still exists in the potentially reset session state
-            tree = st.session_state.get("tree")
-            if not tree or new_id not in tree.get("nodes", {}):
-                # Fallback: Reset UI selection to whatever the tree thinks is current
-                if tree and "current" in tree:
-                     st.session_state["nav_selection_box"] = tree["current"]
-                return
-
-            if new_id != tree["current"]:
-                from app import add_debug_log
-                
-                # 1. Capture Current Draft before Leaving
-                old_id = tree["current"]
-                current_draft = st.session_state.get("editor_html", "")
-                if current_draft:
-                    # Sync to the node we ARE CURRENTLY ON before moving
-                    tree["nodes"][old_id].setdefault("metadata", {})["html"] = current_draft
-                    add_debug_log(f"🔄 NAV: Saved {len(current_draft)} chars to old node {old_id}")
-                
-                # 2. Perform Navigation
-                add_debug_log(f"🔄 NAV: Switching from {old_id} to {new_id}")
-                navigate_to_node(tree, new_id)
-                
-                # 3. Resolve Target Content (with robust fallback)
-                target_html = get_nearest_html(tree, new_id)
-                add_debug_log(f"🔄 NAV: Resolved target HTML (success={bool(target_html)})") 
-                
-                # If target has NO saved state (like a new idea), 
-                # we keep the current draft if they are related, but get_nearest_html 
-                # already handles walking up the tree. 
-                st.session_state["editor_html"] = target_html or current_draft
-                
-                # 4. Force Quill Re-mount
-                if "editor_version" not in st.session_state:
-                    st.session_state.editor_version = 0
-                st.session_state.editor_version += 1
-                
-                # Auto-pin
-                target_node = tree["nodes"][new_id]
-                if target_node.get("type") != "root":
-                    meta = target_node.get("metadata", {})
-                    pin_obj = {
-                        "id": new_id, 
-                        "title": meta.get("label", get_node_short_label(target_node)), 
-                        "text": meta.get("explanation", target_node.get("summary", "")), 
-                        "type": "idea",
-                        "scope": meta.get("scope", "Whole Document"),
-                        "source_context": meta.get("source_context", "")
-                    }
-                    if "pinned_items" in tree:
-                        if not any(isinstance(i, dict) and i.get("id") == new_id for i in tree["pinned_items"]):
-                             tree["pinned_items"].append(pin_obj)
-                             add_debug_log(f"📌 NAV: Auto-pinned node {new_id}")
-
-                add_debug_log(f"🔄 NAV: Complete. New node={new_id}")
-                st.rerun()
-
         try:
             current_index = visible_nodes.index(current_id)
         except:
@@ -227,7 +178,7 @@ def render_sidebar_map(tree, show_header: bool = True):
         for nid in visible_nodes:
             node = tree["nodes"][nid]
             base_label = node.get("metadata", {}).get("label", get_node_short_label(node))
-            if base_label == "Idea": base_label = "New Path"
+            if base_label == "Idea": base_label = "New Node"
             
             if base_label not in label_counts:
                 label_counts[base_label] = 1
@@ -236,15 +187,58 @@ def render_sidebar_map(tree, show_header: bool = True):
                 label_counts[base_label] += 1
                 node_id_to_label[nid] = f"{base_label} ({label_counts[base_label]})"
 
+        if "nav_selection_box" not in st.session_state or st.session_state.nav_selection_box not in visible_nodes:
+             st.session_state.nav_selection_box = visible_nodes[current_index]
+
         st.selectbox(
-            "🎯 Navigate:", 
+            "🎯 Select Node:", 
             options=visible_nodes, 
             format_func=lambda nid: node_id_to_label.get(nid, nid), 
-            index=current_index, 
             key="nav_selection_box", 
-            on_change=handle_navigation,
-            help="Use this box to navigate between different versions and ideas. Selecting a node automatically PINS its full details."
+            help="Select a node to navigate. Click 'Navigate' below to confirm."
         )
+
+        if st.button("🚀 Navigate", use_container_width=True, help="Switch to the selected reasoning node."):
+            new_id = st.session_state.get("nav_selection_box")
+            if new_id and new_id != tree["current"]:
+                from app import add_debug_log
+                
+                # 1. Capture Current Draft before Leaving
+                old_id = tree["current"]
+                current_draft = st.session_state.get("editor_html", "")
+                if current_draft:
+                    tree["nodes"][old_id].setdefault("metadata", {})["html"] = current_draft
+                
+                # 2. Perform Navigation
+                navigate_to_node(tree, new_id)
+                
+                # 3. Resolve Target Content
+                target_html = get_nearest_html(tree, new_id)
+                st.session_state["editor_html"] = target_html or current_draft
+                
+                # 4. Auto-pin
+                target_node = tree["nodes"][new_id]
+                if target_node.get("type") != "root":
+                    meta = target_node.get("metadata", {})
+                    pin_obj = {
+                        "id": new_id, 
+                        "title": meta.get("label", get_node_short_label(target_node)), 
+                        "text": meta.get("explanation", target_node.get("summary", "")), 
+                        "type": "idea",
+                        "scope": meta.get("scope", "Whole Document"),
+                        "source_context": "" 
+                    }
+                    if "pinned_items" in tree:
+                        if not any(isinstance(i, dict) and i.get("id") == new_id for i in tree["pinned_items"]):
+                             tree["pinned_items"].append(pin_obj)
+                
+                # Persistent Navigation
+                from tree import save_tree
+                save_tree(tree)
+                
+                # NO st.rerun() as per Rule 8, EXCEPT for navigation bottlenecks where immediate refresh is required for snappiness.
+                st.rerun()
+        
 
         # Build graph
         graph = graphviz.Digraph()
@@ -355,6 +349,9 @@ def render_sidebar_map(tree, show_header: bool = True):
             st.session_state.root_topic_resolved = False
             st.session_state.last_edit_time = 0
             st.session_state.editor_version = st.session_state.get("editor_version", 0) + 1
+            
+            from tree import save_tree
+            save_tree(st.session_state.tree)
             
             st.toast("Thought tree has been reset. Your draft is preserved.", icon="🌳")
             st.rerun()

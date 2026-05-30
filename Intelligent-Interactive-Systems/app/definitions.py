@@ -13,7 +13,6 @@ class ActionType(Enum):
     DIVERGE = "diverge"
     REFINE = "refine"
     CRITIQUE = "critique"
-    CLASSIFY = "classify"
     SEGMENT = "segment"
 
 

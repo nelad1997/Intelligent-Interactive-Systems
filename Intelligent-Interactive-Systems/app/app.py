@@ -35,7 +35,7 @@ if current_dir not in sys.path:
 
 # --- Imports ---
 from definitions import UserEventType, ActionType
-from tree import init_tree, get_current_node, navigate_to_node, get_node_short_label, get_nearest_html, load_tree
+from tree import init_tree, get_current_node, navigate_to_node, get_node_short_label, get_nearest_html, load_tree, save_tree
 from controller import handle_event, generate_diff_html, apply_fuzzy_replacement
 from sidebar_map import render_sidebar_map
 from dotenv import load_dotenv
@@ -228,15 +228,22 @@ st.markdown("""
 .status-ready { background-color: #f0fdf4; color: #166534; border: 2px solid #bbf7d0; }
 .status-structure { background-color: #ecfeff; color: #0891b2; border: 2px solid #a5f3fc; }
 .status-refining { background-color: #f5f3ff; color: #5b21b6; border: 2px solid #ddd6fe; }
-.status-thinking { background-color: #fff1f2; color: #e11d48; border: 2px solid #fecdd3; animation: pulse-red 2s infinite; }
-@keyframes pulse-red { 0% { opacity: 1; } 50% { opacity: 0.7; } 100% { opacity: 1; } }
+.action-bar.status-explore { background-color: #e0f2fe; border-color: #bae6fd; }
+.action-bar.status-reflect { background-color: #fef3c7; border-color: #fde68a; }
+.action-bar.status-refining { background-color: #f5f3ff; border-color: #ddd6fe; }
+.action-bar.status-structure { background-color: #ecfeff; border-color: #a5f3fc; }
 .action-bar {
     border: 1px solid #e5e7eb;
     border-radius: 14px;
     padding: 14px 16px 16px 16px;
     margin-bottom: 16px;
     background-color: #f9fafb;
+    transition: background-color 0.3s ease, border-color 0.3s ease;
 }
+.action-bar.status-explore { background-color: #f0f9ff; border-color: #bae6fd; }
+.action-bar.status-reflect { background-color: #fffbeb; border-color: #fde68a; }
+.action-bar.status-refining { background-color: #f5f3ff; border-color: #ddd6fe; }
+.action-bar.status-structure { background-color: #f0f9ff; border-color: #bae6fd; }
 .action-bar-title {
     font-size: 0.9rem;
     font-weight: 600;
@@ -411,6 +418,19 @@ def get_document_structure(current_html):
 # Main App
 # -------------------------------------------------
 def main():
+    # 0. EARLY SYNC: Pull from widget state if available (fixes "first input not recognized" bug)
+    quill_key = f"quill_editor_{st.session_state.get('editor_version', 0)}"
+    if quill_key in st.session_state:
+        widget_val = st.session_state[quill_key]
+        if widget_val is not None:
+            # Remove potential <style> blocks injected by browser/extensions
+            clean_widget_val = re.sub(r"<style.*?>.*?</style>", "", widget_val, flags=re.DOTALL | re.IGNORECASE)
+            if clean_widget_val != st.session_state.get("editor_html"):
+                st.session_state["editor_html"] = clean_widget_val
+                # Trigger immediate structural refresh
+                _, paras = get_document_structure(clean_widget_val)
+                st.session_state.structural_segments = paras
+
     if "pending_action" not in st.session_state:
         st.session_state.pending_action = None
     if "is_thinking" not in st.session_state:
@@ -420,24 +440,35 @@ def main():
     if "llm_in_flight" not in st.session_state:
         st.session_state.llm_in_flight = False
     if "tree" not in st.session_state:
-        # Try to load existing session from disk (Stability Fix)
-        loaded_tree = load_tree()
-        if loaded_tree:
-            st.session_state.tree = loaded_tree
-            add_debug_log(f"♻️ Restored session from disk.")
-        else:
-            st.session_state.tree = init_tree("")
+        # EPHEMERAL MODE: Always start fresh on reload (User Request)
+        # We explicitly do NOT load from disk.
+        import uuid
+        # Generate a random ID for this run so saves don't overwrite previous runs (even though we don't reload them)
+        if "stable_session_id" not in st.session_state:
+            st.session_state["stable_session_id"] = str(uuid.uuid4())[:8]
+
+        st.session_state.tree = init_tree("")
+        st.session_state["editor_html"] = ""
+        add_debug_log(f"✨ Started new ephemeral session: {st.session_state['stable_session_id']}")
     
-    # DEFENSIVE: Check tree again before accessing nested properties
-    tree = st.session_state.get("tree")
-    if tree and "pinned_items" not in tree:
-        tree["pinned_items"] = []
-    if "banned_ideas" not in st.session_state:
-        st.session_state.banned_ideas = []
+    # DEFENSIVE & MIGRATION: Ensure all tree fields exist
+    tree = st.session_state.tree
+    if "pinned_items" not in tree: tree["pinned_items"] = []
+    if "banned_ideas" not in tree: tree["banned_ideas"] = []
+    if "dismissed_suggestions" not in tree: tree["dismissed_suggestions"] = set()
+    if "bulletproof_history" not in tree: tree["bulletproof_history"] = set()
+    if "current_critiques" not in tree: tree["current_critiques"] = []
+    if "pending_refine_edits" not in tree: tree["pending_refine_edits"] = []
+
+    # UI Backwards Compatibility (aliasing for readability in existing code)
+    st.session_state.banned_ideas = tree["banned_ideas"]
+    st.session_state.dismissed_suggestions = tree["dismissed_suggestions"]
+    st.session_state.bulletproof_history = tree["bulletproof_history"]
+    st.session_state.current_critiques = tree["current_critiques"]
+    st.session_state.pending_refine_edits = tree["pending_refine_edits"]
+
     if "selected_paths" not in st.session_state:
         st.session_state.selected_paths = []
-    if "editor_version" not in st.session_state:
-        st.session_state.editor_version = 0
     if "knowledge_base" not in st.session_state:
         st.session_state.knowledge_base = {}
     if "pending_refine_edits" not in st.session_state:
@@ -452,6 +483,8 @@ def main():
         st.session_state.promo_focus_mode = "Whole Document"
     if "debug_logs" not in st.session_state:
         st.session_state.debug_logs = []
+    if "editor_version" not in st.session_state:
+        st.session_state.editor_version = 0
 
     # --- CLOUD GUARDRAIL: Session State Integrity ---
     from definitions import IS_CLOUD
@@ -486,6 +519,18 @@ def main():
 
     if "editor_html" not in st.session_state:
         st.session_state["editor_html"] = get_nearest_html(tree, st.session_state.tree["current"])
+    
+    # --- IMMEDIATE WIDGET SYNC (Fixes AI Focus Mismatch) ---
+    # Sync focus widgets to state BEFORE calculating target_text/preview
+    focus_choice = st.session_state.get("promo_focus_mode_radio", "Whole Document")
+    st.session_state["promo_focus_mode"] = "Whole Document" if focus_choice == "Whole Document" else "Specific Paragraph"
+
+    selection = st.session_state.get("promo_block_radio_selector")
+    if selection:
+        match = re.search(r"(\d+)", selection)
+        if match:
+            st.session_state["promo_block_selector_idx"] = int(match.group(1)) - 1
+            
     mode_label, mode_class = get_ui_state(tree)
 
     col_editor, col_lantern = st.columns([2, 1], gap="large")
@@ -500,14 +545,14 @@ def main():
         else:
             st.subheader("Editor")
 
-        if "comparison_data" in st.session_state:
-            comp = st.session_state.comparison_data
-            diff_html = generate_diff_html(comp['a']['summary'], comp['b']['summary'])
-            st.markdown(
-                f'<div style="background-color: white; padding: 20px; border-radius: 8px; border: 1px solid #e2e8f0; line-height: 1.6;">{diff_html}</div>',
-                unsafe_allow_html=True)
+        if st.session_state.get("ai_info_message"):
+            c_msg, c_msg_del = st.columns([0.9, 0.1])
+            c_msg.info(st.session_state["ai_info_message"])
+            if c_msg_del.button("✖", key="clear_ai_info", help="Clear this message"):
+                st.session_state["ai_info_message"] = None
+                st.rerun()
 
-        # Logic moved above buttons, UI moved below
+        # --- AI ACTION BAR + CONTEXT (RESTORED TO TOP) ---
         combined_help_info = (
             "🤖 AI Actions Guide:&#10;&#10;"
             "• Expand: Generates 3 academic perspectives to grow your ideas.&#10;"
@@ -526,35 +571,26 @@ def main():
         block_idx = 1
         
         if focus_mode == "Specific Paragraph" and paragraphs_only:
-            # Consistent index reading from synchronized state
             block_idx_raw = st.session_state.get("promo_block_selector_idx", 0)
-            # Bounds check
             block_idx_raw = max(0, min(block_idx_raw, len(paragraphs_only) - 1))
             block_idx = block_idx_raw + 1
             target_text = paragraphs_only[block_idx_raw]
         else:
-            # Robust Full Doc Extraction
             current_html = st.session_state.get("editor_html", "")
-            # 1. Remove styles
             no_css = re.sub(r"<style.*?>.*?</style>", "", current_html, flags=re.DOTALL | re.IGNORECASE)
-            # 2. Add newlines for block tags to preserve structure
             txt_s = re.sub(r"<(p|div|h[1-6]|li|blockquote|br)[^>]*>", "\n", no_css)
             txt_s = re.sub(r"</(p|div|h[1-6]|li|blockquote)>", "\n", txt_s)
-            # 3. Strip all other tags and entities
             target_text = re.sub("<[^<]+?>", "", txt_s).replace("&nbsp;", " ").strip()
-            # 4. Collapse extra newlines
             target_text = re.sub(r"\n{3,}", "\n\n", target_text)
-            
-            # Absolute fallback: If empty but HTML isn't, just strip everything
             if not target_text and current_html.strip():
                  target_text = re.sub("<[^<]+?>", "", current_html).strip()
 
+        # Derived focus state for buttons and preview
         st.session_state["focused_text"] = target_text
-        st.session_state["focus_scope_label"] = "Whole Document" if focus_mode == "Whole Document" else f"Paragraph {block_idx}"
+        st.session_state["focus_scope_label"] = "Whole Document" if focus_choice == "Whole Document" else f"Paragraph {block_idx}"
 
-        # Thinking Context Badge
         st.markdown(
-            f'<div class="action-bar" style="display: flex; align-items: center; gap: 8px;">'
+            f'<div class="action-bar {mode_class}" style="display: flex; align-items: center; gap: 8px;">'
             f'<div class="action-bar-title" style="margin-bottom: 0;">AI Reasoning Actions</div>'
             f'<span title="{combined_help_info}" style="cursor: pointer; background-color: #38bdf8; color: white; border-radius: 50%; width: 20px; height: 20px; display: inline-flex; align-items: center; justify-content: center; font-size: 0.8rem; font-weight: bold; line-height: 1;">i</span>'
             f'</div>',
@@ -562,40 +598,25 @@ def main():
         )
 
         c1, c2, c3 = st.columns([1, 1, 1], gap="small")
-        
         with c1:
-            if st.button("🌱 Expand", use_container_width=True, help="Explore alternative reasoning paths and divergent perspectives based on your focus."):
-                st.session_state.pending_action = {
-                    "action": ActionType.DIVERGE, 
-                    "anchor_id": tree["current"]
-                }
+            if st.button("🌱 Expand", use_container_width=True, help="Explore alternative reasoning nodes and divergent perspectives based on your focus."):
+                st.session_state.pending_action = {"action": ActionType.DIVERGE, "anchor_id": tree["current"], "f_mode": focus_choice, "t_text": target_text, "b_idx": block_idx, "paras": paragraphs_only}
                 st.session_state.is_thinking = True
                 st.rerun()
         with c2:
-            if st.button("⚖️ Critique", use_container_width=True, help="Analyze your reasoning for potential biases, gaps, or logical fallacies."):
-                st.session_state.pending_action = {
-                    "action": ActionType.CRITIQUE, 
-                    "anchor_id": tree["current"]
-                }
+            if st.button("⚖️ Critique", use_container_width=True, help="Analyze your thinking for potential biases, gaps, or logical fallacies."):
+                st.session_state.pending_action = {"action": ActionType.CRITIQUE, "anchor_id": tree["current"], "f_mode": focus_choice, "t_text": target_text, "b_idx": block_idx, "paras": paragraphs_only}
                 st.session_state.is_thinking = True
                 st.rerun()
         with c3:
             if st.button("✨ Refine", use_container_width=True, help="Generate granular writing suggestions and draft improvements for the selected focus."):
-                st.session_state.pending_action = {
-                    "action": ActionType.REFINE, 
-                    "anchor_id": tree["current"]
-                }
+                st.session_state.pending_action = {"action": ActionType.REFINE, "anchor_id": tree["current"], "f_mode": focus_choice, "t_text": target_text, "b_idx": block_idx, "paras": paragraphs_only}
                 st.session_state.is_thinking = True
                 st.rerun()
-        st.markdown("</div>", unsafe_allow_html=True)
 
-        # --- (3) AI Context & Structure "Folder" ---
-        # --- (3) AI Context & Structure "Folder" ---
         with st.expander("🧠 AI Context & Structure", expanded=False):
             tab1, tab2, tab3 = st.tabs(["🎯 Focus Range", "📑 Segmentation", "👁️ Focus Preview"])
-            
             with tab1:
-                # Sub-section: Focus Range
                 st.markdown(
                     f'<div style="display: flex; align-items: center; gap: 8px; margin-top: 10px; margin-bottom: 5px;">'
                     f'<b>AI Focus Range</b> '
@@ -603,55 +624,12 @@ def main():
                     f'</div>',
                     unsafe_allow_html=True
                 )
-                
-                # Use globally initialized segments
-                current_paras = st.session_state.get("structural_segments", [])
-
-                focus_choice = st.radio(
-                    "Select AI Focus Range:",
-                    ["Whole Document", "Specific Paragraph"],
-                    key="promo_focus_mode_radio",
-                    horizontal=True,
-                    label_visibility="collapsed",
-                    on_change=sync_focus_mode
-                )
-                
-                # Sync immediately on declaration if missing
-                if "promo_focus_mode" not in st.session_state:
-                    sync_focus_mode()
-
-                if focus_choice == "Specific Paragraph":
-                    if current_paras:
-                        st.markdown("<div style='margin-top: 5px;'></div>", unsafe_allow_html=True)
-                        options = []
-                        for i, p in enumerate(current_paras):
-                            # Clean label for radio
-                            p_clean = re.sub(r"^(?:\[P\s*\d+\]|Block\s*\d+:?|\d+[\.)]|[*•\-])\s*", "", p, flags=re.IGNORECASE).strip()
-                            preview = (p_clean[:60] + "...") if len(p_clean) > 60 else p_clean
-                            
-                            # All segments in this list are now considered paragraphs
-                            label_idx = f"{i+1}"
-                            options.append(f"[{label_idx}] {preview}")
-                        
-                        saved_idx = st.session_state.get("promo_block_selector_idx", 0)
-                        # Bounds check
-                        safe_idx = max(0, min(saved_idx, len(options)-1))
-                            
-                        st.radio(
-                            "Select Target Paragraph:",
-                            options=options,
-                            index=safe_idx,
-                            key="promo_block_radio_selector",
-                            label_visibility="collapsed",
-                            on_change=sync_paragraph_selection
-                        )
-                        # Execute sync immediately to capture changes
-                        sync_paragraph_selection()
-                    else:
-                        st.warning("No paragraphs detected. Type some text first.")
-
+                # Use the synced focus_choice for the radio's initial value
+                st.radio("Select AI Focus:", ["Whole Document", "Specific Paragraph"], key="promo_focus_mode_radio", horizontal=True, label_visibility="collapsed")
+                if focus_choice == "Specific Paragraph" and paragraphs_only:
+                    options = [f"[{i+1}] {re.sub('<[^<]+?>', '', p)[:60]}..." for i, p in enumerate(paragraphs_only)]
+                    st.radio("Select Paragraph:", options=options, index=max(0, min(st.session_state.get("promo_block_selector_idx", 0), len(options)-1)), key="promo_block_radio_selector")
             with tab2:
-                # Sub-section: Paragraph Segmentation
                 st.markdown(
                     f'<div style="display: flex; align-items: center; gap: 8px; margin-top: 10px; margin-bottom: 5px;">'
                     f'<b>Paragraph Segmentation</b> '
@@ -659,29 +637,13 @@ def main():
                     f'</div>',
                     unsafe_allow_html=True
                 )
-                paras = st.session_state.get("structural_segments", [])
-                if paras:
-                    st.markdown('<div style="font-size: 0.8rem; color: #64748b; margin-bottom: 8px;">Units identified in your draft:</div>', unsafe_allow_html=True)
-                    with st.container(height=250, border=False):
-                        for i, p in enumerate(paras):
-                            p_clean = re.sub(r"^(?:\[P\s*\d+\]|Block\s*\d+:?|\d+[\.)]|[*•\-])\s*", "", p, flags=re.IGNORECASE).strip()
-                            st.markdown(
-                                f'<div style="margin-bottom: 8px; padding: 6px; background: #f8fafc; border-radius: 4px; border-left: 2px solid #38bdf8; font-size: 0.8rem;">'
-                                f'<b>[P{i+1}]</b> {p_clean[:120]}...</div>',
-                                unsafe_allow_html=True
-                            )
-                
-                has_content = bool(st.session_state.get("editor_html", "").strip())
-                if has_content:
-                    st.markdown("<div style='margin-top: 5px;'></div>", unsafe_allow_html=True)
-                    if st.button("🔄 Refresh Structure", use_container_width=True, help="Update the segments based on current changes (excluding title)."):
-                        _, paragraphs = get_document_structure(st.session_state.get("editor_html", ""))
-                        st.session_state.structural_segments = paragraphs
-                        st.toast("Updated document structure!")
-                        st.rerun()
-
+                for i, p in enumerate(paragraphs_only):
+                    st.markdown(f"**[P{i+1}]** {re.sub('<[^<]+?>', '', p)[:120]}...")
+                if st.button("🔄 Refresh Structure", use_container_width=True):
+                    st.session_state.pending_action = {"action": ActionType.SEGMENT}
+                    st.session_state.is_thinking = True
+                    st.rerun()
             with tab3:
-                # Sub-section: AI Focus Preview
                 st.markdown(
                     f'<div style="display: flex; align-items: center; gap: 8px; margin-top: 10px; margin-bottom: 5px;">'
                     f'<b>AI Focus Preview</b> '
@@ -689,144 +651,70 @@ def main():
                     f'</div>',
                     unsafe_allow_html=True
                 )
-                st.caption("Exact text Lantern will analyze:")
-                st.markdown(
-                    f'<div style="font-size: 0.85rem; color: #475569; background-color: #f8fafc; padding: 10px; border-radius: 6px; border: 1px solid #e2e8f0; height: 180px; overflow-y: auto; white-space: pre-wrap;">'
-                    f'{st.session_state.get("focused_text", "No text detected.")}'
-                    f'</div>',
-                    unsafe_allow_html=True
-                )
-
-        if st.session_state.get("ai_info_message"):
-            c_msg, c_msg_del = st.columns([0.9, 0.1])
-            c_msg.info(st.session_state["ai_info_message"])
-            if c_msg_del.button("✖", key="clear_ai_info", help="Clear this message"):
-                st.session_state["ai_info_message"] = None
-                st.rerun()
+                st.text_area("Exact text Lantern will analyze:", value=target_text, height=200, disabled=True, label_visibility="collapsed")
 
         st.markdown("<div style='margin-bottom: 20px'></div>", unsafe_allow_html=True)
-        EDITOR_CSS = "<style>.ql-editor { font-size: 18px !important; line-height: 1.6; }</style>"
 
-        html_content = st.session_state["editor_html"]
-        
-        # --- NEW: Granular Refine Progress Bar ---
+        # --- Refine Progress Indicator (RESTORED) ---
         if st.session_state.get("pending_refine_edits"):
             pending_count = len([p for p in st.session_state.pending_refine_edits if p["status"] == "pending"])
             if pending_count > 0:
                 st.warning(f"✨ Reviewing {pending_count} suggested improvements in the sidebar.")
-        
-        if True: # Editor is now always visible
-            # שינוי: עטיפת ה-Editor במיכל עם גובה קבוע המאפשר גלילה (ללא border כדי למנוע שגיאות גרסה)
-            with st.container(height=600):
-                # Small Floating Clear Button inside container
-                st.markdown(
-                    """
-                    <div style="position: relative; height: 0; z-index: 1000; text-align: right; top: 10px; right: 10px; pointer-events: none;">
-                    </div>
-                    """, unsafe_allow_html=True
-                )
-                
-                # Use columns for right-alignment of the button
-                c_btn_1, c_btn_2 = st.columns([0.94, 0.06])
-                if c_btn_2.button("🗑", help="Reset All: Clears the editor and resets the entire Thought Tree and AI context."):
-                    # FULL RESET: Wipe everything
-                    st.session_state["editor_html"] = ""
-                    st.session_state.tree = init_tree("")
-                    
-                    # Wiping session state context
-                    st.session_state.banned_ideas = []
-                    st.session_state.dismissed_suggestions = set()
-                    st.session_state.bulletproof_history = set()
-                    st.session_state.selected_paths = []
-                    st.session_state.current_critiques = []
-                    st.session_state.pending_refine_edits = []
-                    st.session_state.structural_segments = []
-                    st.session_state.logical_paragraphs = []
-                    st.session_state.focused_text = ""
-                    
-                    # Force Quill Re-mount to show empty editor
-                    if "editor_version" not in st.session_state:
-                        st.session_state.editor_version = 0
-                    st.session_state.editor_version += 1
-                    
-                    st.rerun()
-                    st.session_state.focused_text = ""
-                    st.session_state.promo_block_selector_idx = 0
-                    if "promo_block_radio_selector" in st.session_state:
-                        del st.session_state["promo_block_radio_selector"]
-                    st.session_state.promo_focus_mode = "Whole Document"
-                    if "promo_focus_mode_radio" in st.session_state:
-                        del st.session_state["promo_focus_mode_radio"]
-                    if "last_imported_doc" in st.session_state:
-                        del st.session_state["last_imported_doc"]
-                    
-                    # Reset UI/Meta state
-                    st.session_state.root_topic_resolved = False
-                    st.session_state.last_edit_time = 0
-                    st.session_state.editor_version += 1
-                    
-                    if os.path.exists("lantern_autosave.json"):
-                        try: os.remove("lantern_autosave.json")
-                        except: pass
-                    
-                    st.toast("Lantern has been reset to its initial state.", icon="🏮")
-                    st.rerun()
-                    st.rerun()
 
-                # Prepend CSS to the value so it renders inside the iframe
-                quill_value = EDITOR_CSS + st.session_state["editor_html"]
-                
-                html_content = st_quill(
-                    value=quill_value,
-                    placeholder="Start drafting...",
-                    html=True,
-                    key=f"quill_main_{st.session_state.editor_version}",
-                )
+        # --- QUILL EDITOR (With Right-Aligned Trash Icon Above) ---
+        c_ed_1, c_ed_2 = st.columns([0.94, 0.06])
+        with c_ed_2:
+             if st.button("🗑", help="Reset All: Clears the editor and resets the entire Thought Tree and AI context.", key="reset_all_above_editor"):
+                # FULL RESET: Wipe everything
+                st.session_state["editor_html"] = ""
+                st.session_state.tree = init_tree("")
+                st.session_state.banned_ideas = []
+                st.session_state.dismissed_suggestions = set()
+                st.session_state.bulletproof_history = set()
+                st.session_state.selected_paths = []
+                st.session_state.current_critiques = []
+                st.session_state.pending_refine_edits = []
+                st.session_state.structural_segments = []
+                st.session_state.logical_paragraphs = []
+                st.session_state.focused_text = ""
+                st.session_state.editor_version = st.session_state.get("editor_version", 0) + 1
+                save_tree(st.session_state.tree)
+                st.rerun()
 
-                if html_content is not None:
-                    # Robust Clean: Remove any <style> blocks
-                    clean_html = re.sub(r"<style.*?>.*?</style>", "", html_content, flags=re.DOTALL | re.IGNORECASE)
+        # --- QUILL EDITOR ---
+        quill_value = st.session_state.get("editor_html", "")
+        with st.container(height=600):
+            html_content = st_quill(
+                value=quill_value,
+                placeholder="Start drafting...",
+                html=True,
+                key=f"quill_editor_{st.session_state.get('editor_version', 0)}",
+            )
+            if html_content is not None:
+                # Robust Clean: Remove any <style> blocks
+                clean_html = re.sub(r"<style.*?>.*?</style>", "", html_content, flags=re.DOTALL | re.IGNORECASE)
+                current_html_state = st.session_state.get("editor_html", "")
+
+                if st.session_state.get("just_applied_refine"):
+                    st.session_state.just_applied_refine = False
+                    add_debug_log("✍️ IGNORED stale editor update after Refine Apply.")
+                elif clean_html != current_html_state:
+                    st.session_state["editor_html"] = clean_html
+                    if current_node.get("id") in st.session_state.tree["nodes"]:
+                         st.session_state.tree["nodes"][current_node["id"]].setdefault("metadata", {})["html"] = clean_html
                     
-                    # Sync to state
-                    current_html_state = st.session_state.get("editor_html", "")
+                    doc_title, paragraphs = get_document_structure(clean_html)
+                    st.session_state.structural_segments = paragraphs
                     
-                    if st.session_state.get("just_applied_refine"):
-                        st.session_state.just_applied_refine = False
-                    elif clean_html.strip() != current_html_state.strip():
-                        # TEXT CHANGE DETECTED
-                        st.session_state["editor_html"] = clean_html
-                        current_node.setdefault("metadata", {})["html"] = clean_html
-                        
-                        # Calculate plain text for analysis
-                        text_proc = re.sub(r"<(p|div|h[1-6]|li|blockquote)[^>]*>", "", clean_html)
-                        text_proc = re.sub(r"</(p|div|h[1-6]|li|blockquote)>", "\n", text_proc).replace("<br>", "\n")
-                        plain_text = re.sub("<[^<]+?>", "", text_proc).strip()
-                        current_node["metadata"]["draft_plain"] = plain_text
-                        # Update paragraphs from current clean_html
-                        doc_title, paragraphs = get_document_structure(clean_html)
-                        st.session_state.structural_segments = paragraphs # Sync for ALL node types
-                        
-                        # Update paragraphs from current clean_html
-                        doc_title, paragraphs = get_document_structure(clean_html)
-                        st.session_state.structural_segments = paragraphs # Sync for ALL node types
-                        
-                        # Update Root Label if this is the root node
-                        if current_node.get("type") == "root":
-                            if doc_title:
-                                title_topic = re.sub(r"^(?:\[P\s*\d+\]|Block\s*\d+:?|\d+[\.)]|[*•\-])\s*", "", doc_title, flags=re.IGNORECASE).strip()
-                                if len(title_topic) > 60: title_topic = title_topic[:57] + "..."
-                                current_node["metadata"]["label"] = f"[{title_topic}]"
-                            elif paragraphs:
-                                current_node["metadata"]["label"] = f"[{paragraphs[0][:25]}...]"
-                        
-                        st.session_state.last_edit_time = time.time()
-                        
-                        # Rerun to update Preview UI at the top
-                        st.rerun()
-                
-                # --- Automatic Segmentation Disabled (Fix for Rate Limits) ---
-                # Segmentation now only runs via "Refresh Logical Map" or after explicit AI actions if desired
-                pass
+                    if current_node.get("type") == "root":
+                        if doc_title:
+                            title_topic = re.sub(r"^(?:\[P\s*\d+\]|Block\s*\d+:?|\d+[\.)]|[*•\-])\s*", "", doc_title, flags=re.IGNORECASE).strip()
+                            if len(title_topic) > 60: title_topic = title_topic[:57] + "..."
+                            current_node["metadata"]["label"] = f"[{title_topic}]"
+                        elif paragraphs:
+                            current_node["metadata"]["label"] = f"[{paragraphs[0][:25]}...]"
+                    
+                    st.session_state.last_edit_time = time.time()
 
 
 
@@ -854,24 +742,17 @@ def main():
         # Determine default index logic:
         # If we have PENDING edits, default to Refine View (index 1) unless user manually switched.
         # If we just applied a refine, we WANT to stay in Refine View to see others.
-        default_index = 0
         has_pending = st.session_state.get("pending_refine_edits") and any(p["status"] == "pending" for p in st.session_state.pending_refine_edits)
-        
-        if has_pending:
-             default_index = 1
-        
-        # If 'sidebar_view_toggle' isn't in state yet, set it based on logic
         if "sidebar_view_toggle" not in st.session_state:
-             st.session_state.sidebar_view_toggle = ["🗺️ Thought Map", "✨ Refine Review"][default_index]
+             st.session_state.sidebar_view_toggle = "✨ Refine Review" if has_pending else "🗺️ Thought Map"
 
-        # Force view to Refine if we have pending items and just applied one (to prevent flipping back)
+        # Force view to Refine if we just applied a refinement and still have more to review
         if st.session_state.get("just_applied_refine") and has_pending:
-             default_index = 1
+             st.session_state.sidebar_view_toggle = "✨ Refine Review"
 
         sidebar_view = st.radio(
             "View:",
             ["🗺️ Thought Map", "✨ Refine Review"],
-            index=default_index,
             horizontal=True,
             key="sidebar_view_toggle",
             label_visibility="collapsed"
@@ -888,7 +769,9 @@ def main():
                 c_titles_1, c_titles_2 = st.columns([0.85, 0.15])
                 c_titles_1.markdown("### ✨ Refine Review")
                 if c_titles_2.button("🗑", help="Dismiss all pending suggestions", key="dismiss_all_refine"):
+                    st.session_state.tree["pending_refine_edits"] = []
                     st.session_state.pending_refine_edits = []
+                    save_tree(st.session_state.tree)
                     st.rerun()
                 
                 # Show AI info message if any (e.g. "No improvements found")
@@ -939,19 +822,24 @@ def main():
                                     proposal["status"] = "applied"
                                     st.session_state.editor_version += 1
                                     st.session_state.just_applied_refine = True
+                                    save_tree(st.session_state.tree)
                                     st.toast("✅ Applied suggested improvement!", icon="✨")
                                     st.rerun()
                                 else:
                                     st.error("⚠️ Automated placement failed due to text/formatting mismatch.")
-                                    with st.expander("🔍 Show Debug Info (Why it failed)"):
-                                        st.write("**What the AI tried to replace:**")
+                                    # LOG exactly what happened to debug logs
+                                    add_debug_log(f"❌ REFINE APPLY FAILED: Could not match AI original in current HTML.\nTarget: {proposal['original'][:100]}...\nHTML Len: {len(current_html)}")
+                                    
+                                    with st.expander("🔍 Show Debug Info & Manual Fix"):
+                                        st.write("**What Lantern couldn't find in your draft:**")
                                         st.code(proposal['original'])
-                                        st.write("**What the AI proposed:**")
+                                        st.write("**The AI's suggested replacement:**")
                                         st.code(proposal['proposed'])
-                                        st.info("The system couldn't find a matching segment in your draft precisely enough. You can copy the code above and paste it manually.")
+                                        st.info("The system couldn't find this exact segment. You can copy the proposed text above and paste it manually into your draft.")
                             
                             if c_dis.button("✖ Skip", key=f"dis_refine_{proposal['id']}", use_container_width=True):
                                 proposal["status"] = "dismissed"
+                                save_tree(st.session_state.tree)
                                 st.rerun()
                 
                 # --- After the loop: Completion state ---
@@ -1078,11 +966,6 @@ def main():
                 with st.expander(f"📌 {title or 'Pinned Insight'} ({scope})"):
                     st.markdown(text)
                     # Filter out "undefined" or null contexts
-                    if source_context and source_context.strip().lower() != "undefined":
-                        with st.expander("🔍 Analyzed Context", expanded=False):
-                            st.caption("Lantern analyzed this specific text for this insight:")
-                            st.markdown(f'<div style="font-size: 0.8rem; color: #64748b; background-color: #f8fafc; padding: 10px; border-radius: 4px; border-left: 3px solid #cbd5e1; max-height: 200px; overflow-y: auto;">{source_context}</div>', unsafe_allow_html=True)
-                    
                     if st.button("❌ Unpin", key=f"unpin_{i}", use_container_width=True):
                         st.session_state.tree["pinned_items"].pop(i)
                         st.rerun()
@@ -1113,7 +996,9 @@ def main():
                 c_head, c_clear = st.columns([0.8, 0.2])
                 c_head.subheader("💡 Critical Perspective")
                 if c_clear.button("🗑", key="clear_all_critiques", help="Clear All Critiques", use_container_width=True):
-                    st.session_state["current_critiques"] = []
+                    st.session_state.tree["current_critiques"] = []
+                    st.session_state.current_critiques = []
+                    save_tree(st.session_state.tree)
                     st.rerun()
 
                 for i, item_data in enumerate(list(st.session_state["current_critiques"])):
@@ -1162,6 +1047,7 @@ def main():
                                     "text": text,
                                     "type": "critique"
                                 })
+                                save_tree(st.session_state.tree)
                                 st.session_state["current_critiques"].pop(i)
                                 st.rerun()
 
@@ -1173,12 +1059,15 @@ def main():
                                     "text": text,
                                     "type": "critique"
                                 })
+                                save_tree(st.session_state.tree)
                                 # User requested NOT to remove it from list when just pinning
                                 st.rerun()
 
                         with c_del:
                             if st.button("🗑", key=f"cs_del_{i}", help="Delete this critique", use_container_width=True):
                                 st.session_state["current_critiques"].pop(i)
+                                st.session_state.tree["current_critiques"] = st.session_state["current_critiques"]
+                                save_tree(st.session_state.tree)
                                 st.rerun()
                                 
             # 🌿 Suggested Paths
@@ -1195,9 +1084,10 @@ def main():
                 c_head, c_clear = st.columns([0.8, 0.2])
                 c_head.subheader("Suggested Paths")
                 if c_clear.button("🗑", key="clear_all_suggestions", help="Clear All Suggestions", use_container_width=True):
-                     for child_id in [item["id"] for item in visible_children]:
-                         st.session_state.dismissed_suggestions.add(child_id)
-                     st.rerun()
+                    for child_id in [item["id"] for item in visible_children]:
+                        st.session_state.dismissed_suggestions.add(child_id)
+                    save_tree(st.session_state.tree)
+                    st.rerun()
 
                 st.caption("Lantern generated alternative reasoning paths. Select one to continue.")
                 for item in visible_children:
@@ -1269,7 +1159,7 @@ def main():
                                     "text": explanation, 
                                     "type": "idea",
                                     "scope": scope,
-                                    "source_context": meta.get("source_context", "")
+                                    "source_context": "" # OPTIMIZATION: Do not save heavy context
                                 }
                                 st.session_state.tree["pinned_items"].append(pin_obj)
 
@@ -1285,21 +1175,15 @@ def main():
 
                                 # --- Navigation & State Sync ---
                                 if cid in st.session_state.tree.get("nodes", {}):
-                                    add_debug_log(f"🖱️ SELECT: Navigating to {cid}")
                                     navigate_to_node(st.session_state.tree, cid)
                                     # Use the nearest HTML (which fallback to current_node if already set above)
                                     final_html = get_nearest_html(st.session_state.tree, cid)
                                     st.session_state["editor_html"] = final_html
-                                    add_debug_log(f"🖱️ SELECT: Navigation complete. New draft length: {len(final_html) if final_html else 0}")
-                                else:
-                                    add_debug_log(f"🖱️ SELECT: Node {cid} NOT FOUND in tree!")
-                                    st.error("This suggestion is no longer available.")
-                                
-                                if "editor_version" not in st.session_state:
-                                    st.session_state.editor_version = 0
-                                st.session_state.editor_version += 1
-                                
-                                st.rerun()
+                                    
+                                    save_tree(st.session_state.tree)
+                                    
+                                    # Rule 8 Exception: Navigation performance override
+                                    st.rerun()
                         with c_pin:
                             if st.button("📌", key=f"p_{cid}", help="Pin this suggestion to the sidebar for future reference", use_container_width=True):
                                 st.session_state.tree["pinned_items"].append({
@@ -1308,12 +1192,14 @@ def main():
                                     "text": explanation, 
                                     "type": "idea",
                                     "scope": scope,
-                                    "source_context": meta.get("source_context", "")
+                                    "source_context": ""
                                 })
+                                save_tree(st.session_state.tree)
                                 st.rerun()
                         with c_pru:
                             if st.button("🗑", key=f"pr_{cid}", help="Dismiss this suggestion from view", use_container_width=True):
                                 st.session_state.dismissed_suggestions.add(cid)
+                                save_tree(st.session_state.tree)
                                 st.rerun()
 
 
@@ -1327,22 +1213,18 @@ def main():
             st.session_state.llm_in_flight = True
             
             try:
-                # We use the target_text and focus_context calculated during rendering
-                # But since we are at bottom, we re-verify or rely on stable state
+                # OPTIMIZATION: Process context only when absolutely necessary
                 current_html = st.session_state.get("editor_html", "")
-                f_mode = st.session_state.get("promo_focus_mode", "Whole Document")
-                paras = st.session_state.get("structural_segments", [])
+                # Use values captured at click time to prevent race conditions during rerun
+                f_mode = payload.get("f_mode", st.session_state.get("promo_focus_mode", "Whole Document"))
+                paras = payload.get("paras", st.session_state.get("structural_segments", []))
+                b_idx = payload.get("b_idx", 1)
+                t_text = payload.get("t_text", "")
                 
-                # Dynamic index check
-                b_idx_raw = st.session_state.get("promo_block_selector_idx", 0)
-                b_idx = b_idx_raw + 1
-                
-                # CRITICAL FIX: Use exactly what was shown in the AI Focus Preview
-                t_text = st.session_state.get("focused_text", "")
-                
-                # Fallback only if empty (should not happen if UI rendered correctly)
+                # Fallback only if payload was somehow incomplete (legacy state)
                 if not t_text:
                     if f_mode == "Specific Paragraph" and paras:
+                        b_idx_raw = payload.get("b_idx_raw", st.session_state.get("promo_block_selector_idx", 0))
                         t_text = paras[max(0, min(b_idx_raw, len(paras)-1))]
                     else:
                         no_css = re.sub(r"<style.*?>.*?</style>", "", current_html, flags=re.DOTALL | re.IGNORECASE)
@@ -1355,7 +1237,6 @@ def main():
 
                 logger.info(f"⚡ FINAL EXEC: {payload['action'].name} | Focus={f_mode}")
                 
-                from controller import handle_event
                 response = handle_event(st.session_state.tree, UserEventType.ACTION, {
                     "action": payload["action"],
                     "anchor_id": payload.get("anchor_id"),
@@ -1368,7 +1249,8 @@ def main():
                 })
                 
                 if payload["action"] == ActionType.CRITIQUE:
-                    st.session_state["current_critiques"] = response.get("items", [])
+                    st.session_state.tree["current_critiques"] = response.get("items", [])
+                    st.session_state.current_critiques = st.session_state.tree["current_critiques"]
                     if not st.session_state["current_critiques"]:
                         st.session_state["ai_info_message"] = "🛡️ Lantern analyzed your draft and found it sound."
                 elif payload["action"] == ActionType.DIVERGE:
@@ -1377,9 +1259,14 @@ def main():
                         st.session_state["ai_info_message"] = "🌱 Lantern concludes the current reasoning is comprehensive."
                 elif payload["action"] == ActionType.REFINE:
                     if response.get("mode") == "refine_suggestions":
-                        st.session_state.pending_refine_edits = response.get("items", [])
+                        st.session_state.tree["pending_refine_edits"] = response.get("items", [])
+                        if st.session_state.tree["pending_refine_edits"]:
+                            st.session_state.sidebar_view_toggle = "✨ Refine Review"
+                            st.session_state["ai_info_message"] = f"✨ Lantern found {len(st.session_state.tree['pending_refine_edits'])} writing improvements."
+                        else:
+                            st.session_state["ai_info_message"] = "✨ Lantern analyzed your text and found no specific writing improvements."
                     else:
-                        st.session_state.pending_refine_edits = [{
+                        st.session_state.tree["pending_refine_edits"] = [{
                             "id": f"full_refine_{os.urandom(2).hex()}",
                             "original": t_text,
                             "proposed": response.get("refined_text", ""),
@@ -1388,6 +1275,16 @@ def main():
                             "status": "pending",
                             "scope": f_mode
                         }]
+                        st.session_state.sidebar_view_toggle = "✨ Refine Review"
+                        st.session_state["ai_info_message"] = "✨ A full draft revision is available in Refine Review."
+                    
+                    st.session_state.pending_refine_edits = st.session_state.tree["pending_refine_edits"]
+                    save_tree(st.session_state.tree)
+                elif payload["action"] == ActionType.SEGMENT:
+                    # Perform structural analyzer with indicator
+                    _, paragraphs = get_document_structure(current_html)
+                    st.session_state.structural_segments = paragraphs
+                    # SUCCESS: User requested no info message here, just rely on indicator clearing
             except Exception as e:
                 st.error(f"❌ Gemini Error: {e}")
             finally:

@@ -133,4 +133,5 @@ def build_prompt(action: ActionType, focus: str, instructions: str = "") -> str:
             f"{focus}"
         )
 
+
     raise ValueError(f"Unsupported action type: {action}")
